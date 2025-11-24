@@ -3,7 +3,7 @@ const bgrctx = bgr.getContext('2d');
 
 resize()
 
-const mapSize = 10
+const mapSize = 20
 const mapLength = 10
 const mapGap = mapSize/10
 const spotGap = (bgr.width / (mapSize+(2*mapGap)))
@@ -50,118 +50,63 @@ for(j=0; j<mapLength; j++){
     bgrMap.push(row)
 }
 
-const cx = Math.floor(mapSize / 2);
-const cy = Math.floor(mapSize / 2);
+const li = Math.floor(mapSize / 4);
+const ri = Math.floor((3 * mapSize) / 4);
+const cj = Math.floor(mapLength / 2);
 
-function bgrNoise() {
+function bgrNoise(si, sj) {
 
     const radius = 3
-    const noise = 1.2
+    const noise = 3
 
     // Local window bounds (+/- 4 from center)
     const r = Math.ceil(radius + noise);
-    for (let y = cy - r; y <= cy + r; y++) {
-        for (let x = cx - r; x <= cx + r; x++) {
+    for (let j = sj - r; j <= sj + r; j++) {
+        for (let i = si - r; i <= si + r; i++) {
 
             // Skip if outside matrix
-            if (y < 0 || y >= mapSize || x < 0 || x >= mapSize) continue;
+            if (j < 0 || j >= mapLength || i < 0 || i >= mapSize) continue;
 
             // Distance check
-            const dx = x - cx;
-            const dy = y - cy;
-            const dist = Math.sqrt(dx * dx + dy * dy);
+            const di = i - si;
+            const dj = j - sj;
+            const dist = Math.sqrt(di * di + dj * dj);
 
-            const threshold = radius + (Math.random() * noise - noise / 2);
-            if (dist < threshold) bgrMap[y][x].color = 1;
+            const threshold = radius + (Math.random() - 0.5)*noise;
+            if (dist < threshold) bgrMap[j][i].color = 1;
         }
     }
 }
 
-bgrNoise();
+bgrNoise(li, cj);
+bgrNoise(ri, cj);
 
 function drawMap(){
+    getAllClusters(bgrMap).forEach(cluster => {
+        cluster.forEach(([i, j]) => {
+            // i = 6
+            // j = 7
+            points = getAreaPts(bgrMap, i, j)
+            bgrctx.beginPath();
+            bgrctx.moveTo(points[0][0], points[0][1]);
+            points.forEach(([x, y]) => {
+                bgrctx.lineTo(x, y);
+            })
+
+            bgrctx.closePath();
+
+            bgrctx.fillStyle = "rgba(0, 200, 0, 1)";
+            bgrctx.strokeStyle = "black";
+            bgrctx.lineWidth = -1;
+
+            bgrctx.fill();
+        })
+    })
+        
     runForAll((i, j) => {
         let spot = bgrMap[j][i]
         drawSpot(spot);
-        
-        borders = []
-
-        let eSpot = bgrMap[spot.j]?.[spot.i + 1]
-        if(eSpot) {
-            if(spot.color === eSpot.color && spot.color === 1) {
-                borders.push([spot.border.nx, spot.border.ny, eSpot.border.nx, eSpot.border.ny]);
-                borders.push([spot.border.sx, spot.border.sy, eSpot.border.sx, eSpot.border.sy]);
-            }
-        }
- 
-        let swSpot = bgrMap[spot.j + 1]?.[spot.i - 1]
-        if(swSpot) {
-            if(spot.color === swSpot.color && spot.color === 1) {
-                borders.push([spot.border.sx, spot.border.sy, swSpot.border.ex, swSpot.border.ey]);
-                borders.push([spot.border.wx, spot.border.wy, swSpot.border.nx, swSpot.border.ny]);
-            }
-        }
-
-        let sSpot = bgrMap[spot.j + 1]?.[spot.i]
-        if(sSpot) {
-            if(spot.color === sSpot.color && spot.color === 1) {
-                borders.push([spot.border.ex, spot.border.ey, sSpot.border.ex, sSpot.border.ey]);
-                borders.push([spot.border.wx, spot.border.wy, sSpot.border.wx, sSpot.border.wy]);
-            }
-        }
-
-        let seSpot = bgrMap[spot.j + 1]?.[spot.i + 1]
-        if(seSpot) {
-            if(spot.color === seSpot.color && spot.color === 1) {
-                borders.push([spot.border.ex, spot.border.ey, seSpot.border.nx, seSpot.border.ny]);
-                borders.push([spot.border.sx, spot.border.sy, seSpot.border.wx, seSpot.border.wy]);
-            }
-        }
-
-        bgrctx.beginPath();
-        bgrctx.strokeStyle = "black";
-        bgrctx.lineWidth = 1;
-
-        borders.forEach(([x1, y1, x2, y2]) => {
-            bgrctx.moveTo(x1, y1);
-            bgrctx.lineTo(x2, y2);
-        })
-
-        bgrctx.stroke();
-
-        // adjSpots.forEach(adjSpot =>{
-        //     console.log(adjSpot)
-        //     if(spot.color === adjSpot.color && spot.color === 1) {
-        //         drawLine(spot.x, spot.y, adjSpot.x, adjSpot.y)
-        //     }
-        // });
     })
-}
-
-function getCluster(map, si, sj, visited) {
-    const stack = [[si, sj]];
-    const blob = [];
-
-    while (stack.length) {
-        const [i, j] = stack.pop();
-
-        // Skip if out of bounds or already visited
-        if (
-            i < 0 || i >= map.length ||
-            j < 0 || j >= map[0].length ||
-            visited[i][j] ||
-            map[i][j] !== 1
-        ) continue;
-
-        visited[i][j] = true;
-        blob.push([i, j]);
-
-        // Push neighbors (4-way)
-        runForAdjacent((ni, nj) => {
-            stack.push(ni, nj)
-        }, i, j)
-    }
-    return blob;
 }
 
 function getAllClusters(map) {
@@ -169,9 +114,8 @@ function getAllClusters(map) {
     const clusters = [];
 
     runForAll((si, sj) => {
-
         // Only start a cluster if this cell is an unvisited 1
-        if (visited[si][sj] || map[si][sj] !== 1) return;
+        if (visited[sj][si] || map[sj][si].color !== 1) return;
 
         const stack = [[si, sj]];
         const cluster = [];
@@ -180,13 +124,13 @@ function getAllClusters(map) {
             const [i, j] = stack.pop();
 
             if (
-                i < 0 || i >= map.length ||
-                j < 0 || j >= map[0].length ||
-                visited[i][j] ||
-                map[i][j] !== 1
+                i < 0 || i >= mapSize ||
+                j < 0 || j >= mapLength ||
+                visited[j][i] ||
+                map[j][i].color !== 1
             ) continue;
 
-            visited[i][j] = true;
+            visited[j][i] = true;
             cluster.push([i, j]);
 
             // Push neighbors properly
@@ -200,29 +144,105 @@ function getAllClusters(map) {
     return clusters;
 }
 
+function getAreaPts(map, i, j){
+    const points = []
+    spot = map[j][i]
+    adjSpots = getAdjSpots(i, j)
+
+    // cache neighbors + colors + borders for speed
+    const nw = adjSpots.nw, n = adjSpots.n, ne = adjSpots.ne, e = adjSpots.e;
+    const se = adjSpots.se, s = adjSpots.s, sw = adjSpots.sw, w = adjSpots.w;
+
+    const sc = spot.color;
+
+    const cNW = nw && nw.color === sc;
+    const cN  = n  && n.color  === sc;
+    const cNE = ne && ne.color === sc;
+    const cE  = e  && e.color  === sc;
+    const cSE = se && se.color === sc;
+    const cS  = s  && s.color  === sc;
+    const cSW = sw && sw.color === sc;
+    const cW  = w  && w.color  === sc;
+
+    const sb = spot.border;
+
+    /* 
+    the following code is an amalgamation of ifs and elses that somehow formulates
+    coherent code. it is not understandable, it barely works, and it is slow.  
+    */
+
+    if (!cNW) {
+        if (!cW && cSW) points.push([sb.wx, sb.wy]);
+        if (!cN) points.push([sb.nx, sb.ny]);
+    } else {
+        const b = nw.border;
+        if (!cW) points.push([b.sx, b.sy]);
+        points.push([b.ex, b.ey]);
+        if (cNE && !cN) points.push([sb.nx, sb.ny]);
+    }
+
+    if (cN) {
+        const b = n.border;
+        if (!cNW) points.push([b.wx, b.wy]);
+        points.push([b.ex, b.ey]);
+    }
+
+    if (!cNE) {
+        if (!cN && cNW) points.push([sb.nx, sb.ny]);
+        if (!cE) points.push([sb.ex, sb.ey]);
+    } else {
+        const b = ne.border;
+        if (!cN) points.push([b.wx, b.wy]);
+        points.push([b.sx, b.sy]);
+        if (cSE && !cE) points.push([sb.ex, sb.ey]);
+    }
+
+    if (cE) {
+        const b = e.border;
+        if (!cNE) points.push([b.nx, b.ny]);
+        points.push([b.sx, b.sy]);
+    }
+
+    if (!cSE) {
+        if (!cE && cNE) points.push([sb.ex, sb.ey]);
+        if (!cS) points.push([sb.sx, sb.sy]);
+    } else {
+        const b = se.border;
+        if (!cE) points.push([b.nx, b.ny]);
+        points.push([b.wx, b.wy]);
+        if (cSW && !cS) points.push([sb.sx, sb.sy]);
+    }
+
+    if (cS) {
+        const b = s.border;
+        if (!cSE) points.push([b.ex, b.ey]);
+        points.push([b.wx, b.wy]);
+    }
+
+    if (!cSW) {
+        if (!cS && cSE) points.push([sb.sx, sb.sy]);
+        if (!cW) points.push([sb.wx, sb.wy]);
+    } else {
+        const b = sw.border;
+        if (!cS) points.push([b.ex, b.ey]);
+        points.push([b.nx, b.ny]);
+        if (cNW && !cW) points.push([sb.wx, sb.wy]);
+    }
+
+    if (cW) {
+        const b = w.border;
+        if (!cSW) points.push([b.sx, b.sy]);
+        points.push([b.nx, b.ny]);
+    }
+
+    return points;
+}
+
 
 function drawSpot(spot){
     bgrctx.beginPath();
     bgrctx.arc(spot.x, spot.y, (spot.color+1)*(spotGap/8), 0, 6.2832);
     bgrctx.stroke();
-}
-
-function drawLine(x1, y1, x2, y2, ctx = bgrctx, stroke = 'black', width = 1) {
-  // Set line style properties
-  ctx.strokeStyle = stroke;
-  ctx.lineWidth = width;
-
-  // Begin a new path
-  ctx.beginPath();
-
-  // Move to the starting point of the line
-  ctx.moveTo(x1, y1);
-
-  // Draw a line to the ending point
-  ctx.lineTo(x2, y2);
-
-  // Render the line
-  ctx.stroke();
 }
 
 function resize() {
@@ -234,9 +254,30 @@ function resize() {
     bgr.height = window.innerHeight * dpr;
 }
 
+function getAdjSpots(i, j) {
+    adjSpots = {
+        "nw" : bgrMap[j - 1]?.[i - 1],
+        "n"  : bgrMap[j - 1]?.[i],
+        "ne" : bgrMap[j - 1]?.[i + 1],
+        "w"  : bgrMap[j]?.[i - 1],
+        "e"  : bgrMap[j]?.[i + 1],
+        "sw" : bgrMap[j + 1]?.[i - 1],
+        "s"  : bgrMap[j + 1]?.[i],
+        "se" : bgrMap[j + 1]?.[i + 1]
+    }
+
+    for (const direction in adjSpots) { // purge all nonexisting spots
+        if (adjSpots[direction] === undefined) {
+            delete adjSpots[direction];
+        }
+    }
+
+    return adjSpots
+}
+
 function runForAll(func) {
-    for (let j = 0; j < mapSize; j++) {
-        for (let i = 0; i < mapLength; i++) {
+    for (let j = 0; j < mapLength; j++) {
+        for (let i = 0; i < mapSize; i++) {
             func(i, j)
         }
     }
