@@ -11,6 +11,7 @@ const spotGap = (bgr.width / (mapSize+(2*mapGap)))
 var bgrMap = []
 
 for(j=0; j<mapLength; j++){
+    const noise = .2
     row = []
     for(i=0; i<mapSize; i++) {
         spot = {
@@ -26,22 +27,22 @@ for(j=0; j<mapLength; j++){
             spot.border.nx = bgrMap[j-1][i].border.sx;
             spot.border.ny = bgrMap[j-1][i].border.sy;
         } else {
-            spot.border.nx = spot.x;
-            spot.border.ny = spot.y - (0.5 * spotGap);
+            spot.border.nx = spot.x + (Math.random() - 0.5) * (noise * spotGap);
+            spot.border.ny = spot.y - (0.5 * spotGap) + (Math.random() - 0.5) * (noise * spotGap);
         }
 
-        spot.border.ex = spot.x + (0.5 * spotGap);
-        spot.border.ey = spot.y;
+        spot.border.ex = spot.x + (0.5 * spotGap) + (Math.random() - 0.5) * (noise * spotGap);
+        spot.border.ey = spot.y + (Math.random() - 0.5) * (noise * spotGap);
 
-        spot.border.sx = spot.x;
-        spot.border.sy = spot.y + (0.5 * spotGap);
+        spot.border.sx = spot.x + (Math.random() - 0.5) * (noise * spotGap);
+        spot.border.sy = spot.y + (0.5 * spotGap) + (Math.random() - 0.5) * (noise * spotGap);
 
         if(i>0){ // checking for existing border westward
             spot.border.wx = row[i-1].border.ex;
             spot.border.wy = row[i-1].border.ey;
         } else {
-            spot.border.wx = spot.x - (0.5 * spotGap);
-            spot.border.wy = spot.y;
+            spot.border.wx = spot.x - (0.5 * spotGap) + (Math.random() - 0.5) * (noise * spotGap);
+            spot.border.wy = spot.y + (Math.random() - 0.5) * (noise * spotGap);
         }
 
         row.push(spot)
@@ -96,8 +97,8 @@ function drawMap(){
         let swSpot = bgrMap[spot.j + 1]?.[spot.i - 1]
         if(swSpot) {
             if(spot.color === swSpot.color && spot.color === 1) {
-                borders.push([spot.border.nx, spot.border.ny, swSpot.border.wx, swSpot.border.wy]);
-                borders.push([spot.border.ex, spot.border.ey, swSpot.border.sx, swSpot.border.sy]);
+                borders.push([spot.border.sx, spot.border.sy, swSpot.border.ex, swSpot.border.ey]);
+                borders.push([spot.border.wx, spot.border.wy, swSpot.border.nx, swSpot.border.ny]);
             }
         }
 
@@ -112,8 +113,8 @@ function drawMap(){
         let seSpot = bgrMap[spot.j + 1]?.[spot.i + 1]
         if(seSpot) {
             if(spot.color === seSpot.color && spot.color === 1) {
-                borders.push([spot.border.wx, spot.border.wy, seSpot.border.sx, seSpot.border.sy]);
-                borders.push([spot.border.nx, spot.border.ny, seSpot.border.ex, seSpot.border.ey]);
+                borders.push([spot.border.ex, spot.border.ey, seSpot.border.nx, seSpot.border.ny]);
+                borders.push([spot.border.sx, spot.border.sy, seSpot.border.wx, seSpot.border.wy]);
             }
         }
 
