@@ -3,19 +3,28 @@ const bgrctx = bgr.getContext('2d');
 
 const mapSize = 60  // in nodes
 const landscapeHeight = 25
-const mapLength = 100 // in nodes
+const mapLength = 200 // in nodes
 
 var bgrMap = []
 
 var nodeGap
 var scrollPos = 0 // how much scrolled
-var topNode
 
 var colors = [ // will move and do better. for now is just bg colors
-    "rgb(122, 90, 58)",
-    "rgba(132, 100, 72, 1)",
-    "rgba(104, 77, 54, 1)",
-    "rgba(120, 97, 70, 1)",
+    "rgb(122, 90, 58)", // 0 being default, never called for any node.
+    
+    "rgb(132, 100, 72)",
+    "rgb(104, 77, 54)",
+    "rgb(120, 97, 70)",
+
+    "rgb(130, 130, 135)",
+    "rgb(110, 112, 118)",
+    "rgb(95, 98, 104)",
+    
+    "rgb(96, 133, 72)",
+    "rgb(78, 115, 60)",
+    "rgb(115, 150, 85)",
+
 ]
 
 resize()
@@ -130,16 +139,16 @@ function genCluster(map, si, sj, r, noise, color) { // generates a cluster on a 
 
 
 function drawMap(map){ //draws all nodes on given map
-    runForAll((i, j) => {
+    runForVisible((i, j) => {
         let node = map[j][i]
 
         if(node.color===0) return; // assuming 0 is clear
 
         points = getAreaPts(map, i, j) // fuck fuck fuck fuck fuck this function
         bgrctx.beginPath();
-        bgrctx.moveTo(points[0][0], points[0][1]); // perhaps make it alternating points instead for speed
+        bgrctx.moveTo(points[0][0], points[0][1] - scrollPos); // perhaps make it alternating points instead for speed
         points.forEach(([x, y]) => {
-            bgrctx.lineTo(x, y);
+            bgrctx.lineTo(x, y - scrollPos);
         })
 
         bgrctx.closePath();
@@ -376,6 +385,17 @@ function runForAll(func) { // run for all i, j
     }
 }
 
+function runForVisible(func) { // run for all i, j nodes on screen
+    topNode = Math.max(Math.floor(scrollPos/nodeGap), 0)
+    botNode = Math.min(Math.ceil((scrollPos + bgr.height)/nodeGap), mapLength)
+
+    for (let j = topNode; j < botNode; j++) {
+        for (let i = 0; i < mapSize; i++) {
+            func(i, j)
+        }
+    }
+}
+
 function runForAdjacent(func, io, jo) { // run for adjacent i, j
     for (let j = -1; j < 2; j++) {
         for (let i = -1; i < 2; i++) {
@@ -406,8 +426,11 @@ function resize() { // resize window
     bgr.height = window.innerHeight * dpr;
 
     nodeGap = bgr.width / (mapSize - 1)
-    topNode = scrollPos/nodeGap
 }
 
 window.addEventListener('resize', resize);
+addEventListener("wheel", (e) => {
+    scrollPos += e.deltaY/5
+    console.log(scrollPos)
+})
 
