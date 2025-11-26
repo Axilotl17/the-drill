@@ -1,13 +1,17 @@
 const bgr = document.getElementById("background")
 const bgrctx = bgr.getContext('2d');
 
-const mapSize = 60
-const mapLength = 100
-var nodeGap
+const mapSize = 60  // in nodes
+const landscapeHeight = 25
+const mapLength = 100 // in nodes
 
 var bgrMap = []
 
-var colors = [
+var nodeGap
+var scrollPos = 0 // how much scrolled
+var topNode
+
+var colors = [ // will move and do better. for now is just bg colors
     "rgb(122, 90, 58)",
     "rgba(132, 100, 72, 1)",
     "rgba(104, 77, 54, 1)",
@@ -18,25 +22,41 @@ resize()
 populateNodes(bgrMap, 40)
 genBackground()
 
-var scrollPos = 0
-//var topNode = 
 
 gameLoop()
 
-function populateNodes(map){
+function populateNodes(map){ // generate the nodes on a map
+    // in theory only should populate one map and make copies for other layers
     for(j=0; j<mapLength; j++){
         const noise = 0.2
         row = []
         for(i=0; i<mapSize; i++) {
             node = {
-                "color" : 0,
-                "i" : i,
-                "j" : j,
+                "color" : 0, // should eventually change... make param mayhaps? or 0 is clear
+                "i" : i, // the column of the node, int
+                "j" : j, // the row of the node, int
                 "border" : {}
             }
 
+            /*
+            here i will explain a little bit about how the borders work.
+
+            each node has a border in each cardinal direction.  this value has the same units as
+            i and j, yet is often a decimal value. this means to be useful to the canvas it must
+            be multiplied by nodeGap, the ultimate scalar. this allows us to just change nodeGap 
+            when changing resolution of game and everything else handles itself. 
+
+            each node shares a border with its neighbors. since the borders are added left-right 
+            top-down, we only need to check north and west for existing borders when creating a
+            node. 
+
+            when creating borders, we start between each node (0.5 or -0.5) then add some random
+            value between -noise/2 and +noise/2, (Math.random() - 0.5) * noise. this keeps things
+            spicy. 
+            */
+
             if(j>0){ // checking for existing border northward
-                node.border.nx = map[j-1][i].border.sx;
+                node.border.nx = map[j-1][i].border.sx; // if so adopt that border
                 node.border.ny = map[j-1][i].border.sy - 1;
             } else {
                 node.border.nx = (Math.random() - 0.5) * noise;
@@ -63,18 +83,20 @@ function populateNodes(map){
     }
 }
 
-function genBackground() {
-    const bgrGroundTop = 0
-    for(n = bgrGroundTop; n<mapLength; n+=2) {
-        genCluster(bgrMap, rand(0, mapSize), n, 3, 2, 1)
+function genBackground() { // places clusters on background
+    f = 25 // frequency. right now all cluster types are equally frequent.
+    
+    // starts at landscapeHeight to make room for landscape
+    for(n = landscapeHeight; n<mapLength; n += mapSize/f) { // the above can be changed by modifying a in n += a. 
+        genCluster(bgrMap, rand(0, mapSize), Math.round(n), 3, 1, 1)
     }
-    for(n = bgrGroundTop; n<mapLength; n+=2) {
-        genCluster(bgrMap, rand(0, mapSize), n, 2, 3, 2)
+    for(n = landscapeHeight; n<mapLength; n += mapSize/f) {
+        genCluster(bgrMap, rand(0, mapSize), Math.round(n), 1, 4, 2)
     }
-    for(n = bgrGroundTop; n<mapLength; n+=4) {
-        genCluster(bgrMap, rand(0, mapSize), n, 1, 1, 3)
+    for(n = landscapeHeight; n<mapLength; n += mapSize/f) {
+        genCluster(bgrMap, rand(0, mapSize), Math.round(n), 1, 1, 3)
     }
-    //genCluster(bgrMap, mapSize/2, 7, 1, 1, 1)
+    //genCluster(bgrMap, mapSize/2, 7, 1, 1, 1) // debug
 }  
 
 /**
@@ -83,39 +105,39 @@ function genBackground() {
  * @param {number} si - starting position i
  * @param {number} sj - starting position j 
  * @param {number} r - radius
- * @param {number} noise 
+ * @param {number} noise - range of variation in nodes
  * @param {number} color 
  */
 
-function genCluster(map, si, sj, r, noise, color) {
-    for (let j = sj - r; j <= sj + r; j++) {
-        for (let i = si - r; i <= si + r; i++) {
+function genCluster(map, si, sj, r, noise, color) { // generates a cluster on a given map
+    d = r + Math.floor(noise/2) // ensures checks every point noise could generate
+    for (let j = sj - d; j <= sj + d; j++) {
+        for (let i = si - d; i <= si + d; i++) {
 
-            // Skip if outside matrix
+            // skip if outside map
             if (j < 0 || j >= mapLength || i < 0 || i >= mapSize) continue;
 
-            // Distance check
+            // checks distance from starting node for given node
             const di = i - si;
             const dj = j - sj;
             const dist = Math.sqrt(di * di + dj * dj);
 
-            const threshold = r + (Math.random() - 0.5)*noise;
+            const threshold = r + (Math.random() - 0.5) * noise; // circular check 
             if (dist < threshold) map[j][i]["color"] = color;
         }
     }
 }
 
 
-function drawMap(map){   
+function drawMap(map){ //draws all nodes on given map
     runForAll((i, j) => {
         let node = map[j][i]
 
-        if(node.color===0) return;
-        // i = 6
-        // j = 7
-        points = getAreaPts(map, i, j)
+        if(node.color===0) return; // assuming 0 is clear
+
+        points = getAreaPts(map, i, j) // fuck fuck fuck fuck fuck this function
         bgrctx.beginPath();
-        bgrctx.moveTo(points[0][0], points[0][1]);
+        bgrctx.moveTo(points[0][0], points[0][1]); // perhaps make it alternating points instead for speed
         points.forEach(([x, y]) => {
             bgrctx.lineTo(x, y);
         })
@@ -130,12 +152,12 @@ function drawMap(map){
         bgrctx.stroke();
     })
 
-    // runForAll((i, j) => {
+    // runForAll((i, j) => { // debug
     //     drawNode(map[j][i]);
     // })
 }
 
-function drawNode(node){
+function drawNode(node){ // debug
     bgrctx.strokeStyle = "black"
     bgrctx.lineWidth = 1
     bgrctx.beginPath();
@@ -145,37 +167,36 @@ function drawNode(node){
 
 function drawBackground() {
     bgrctx.fillStyle = colors[0]
-    bgrctx.fillRect(0, Math.max(25*nodeGap - scrollPos, 0 ), bgr.width, bgr.height)
+    bgrctx.fillRect(0, Math.max(landscapeHeight*nodeGap - scrollPos, 0 ), bgr.width, bgr.height)
 }
 
-// unused
-function getAllClusters(map) {
+function getAllClusters(map) { // UNUSED may use later so not deleting
     const visited = map.map(row => row.map(() => false));
     const clusters = [];
 
-    runForAll((si, sj) => {
-        // Only start a cluster if this cell is an unvisited 1
+    runForAll((si, sj) => { // si, sj is starting node
+        // only start a cluster if this node is an unvisited 1
         if (visited[sj][si] || map[sj][si].color === 0) return;
 
-        const stack = [[si, sj]];
+        const queue = [[si, sj]]; // add the current node to queue
         const cluster = [];
 
-        while (stack.length) {
-            const [i, j] = stack.pop();
+        while (queue.length) {
+            const [i, j] = queue.pop();
 
-            if (
+            if ( // ensuring not visited
                 i < 0 || i >= mapSize ||
                 j < 0 || j >= mapLength ||
                 visited[j][i] ||
-                map[j][i].color !== 1
+                map[j][i].color !== 1 // REMOVE THIS 
             ) continue;
 
             visited[j][i] = true;
             cluster.push([i, j]);
 
-            // Push neighbors properly
+            // push neighbors to queue
             runForAdjacent((ni, nj) => {
-                stack.push([ni, nj]);
+                queue.push([ni, nj]);
             }, i, j);
         }
 
@@ -187,6 +208,14 @@ function getAllClusters(map) {
 function getAreaPts(map, i, j){
     /*
     this function is pure magic. please do not ask how it works.
+
+    the goal is that given a node on a map, it will list out the points that make up its
+    realized border, where realized border is considering all neighbors and the interpolation
+    between them.
+
+    the process of considering each neighbor (nw, n, ne, e, se, s, sw, w) and the effect it
+    has has been done by hand, and unless some poor soul wants to try and simplify the pattern
+    i won't be. 
     */ 
 
     const points = []
@@ -197,10 +226,12 @@ function getAreaPts(map, i, j){
     const nwNode = adjNodes.nw, nNode = adjNodes.n, neNode = adjNodes.ne, eNode = adjNodes.e;
     const seNode = adjNodes.se, sNode = adjNodes.s, swNode = adjNodes.sw, wNode = adjNodes.w;
 
+    //just cardinal as theyre repeated to check for fucky overlap 
     const nNodeColor = nNode?.color, eNodeColor = eNode?.color, sNodeColor = sNode?.color, wNodeColor = wNode?.color;
     
     const nc = node.color;
 
+    // all the comparisons, calculated beforehand
     const nwSameColor = nwNode && nwNode.color === nc;
     const nSameColor  = nNode  && nNodeColor  === nc;
     const neSameColor = neNode && neNode.color === nc;
@@ -223,13 +254,11 @@ function getAreaPts(map, i, j){
         "wy" : (node.j + nb.wy) * nodeGap,
     };
 
+    // how many adjacent nodes have the same color
+    const adjCount = Object.keys(adjNodes).filter(key => adjNodes[key].color === nc).length
 
-    /* 
-    the following code is an amalgamation of ifs and elses that somehow formulates
-    coherent code. it is not understandable, it barely works, and it is slow.  
-    */
-
-    if(Object.keys(adjNodes).filter(key => adjNodes[key].color === nc).length === 8){
+    // checks for trivial case, where surrounded. just a shortcut to save time.
+    if(adjCount === 8){
         points.push(
             [(nNode.i + nNode.border.wx) * nodeGap, (nNode.j + nNode.border.wy) * nodeGap],
             [(nNode.i + nNode.border.ex) * nodeGap, (nNode.j + nNode.border.ey) * nodeGap],
@@ -242,6 +271,21 @@ function getAreaPts(map, i, j){
         );
         return points;
     }
+
+    // checks for trivial case, where solo.
+    if(adjCount === 0) {
+        points.push(
+            [sb.nx, sb.ny],
+            [sb.ex, sb.ey],
+            [sb.sx, sb.sy],
+            [sb.wx, sb.wy]
+        );
+    }
+
+    /* 
+    the following code is an amalgamation of ifs and elses that somehow formulates
+    coherent code. it is not understandable, it barely works, and it is slow.  
+    */
 
     if (nwSameColor && !(nNodeColor > nc && nNodeColor === wNodeColor)) {
         const b = nwNode.border;
@@ -303,8 +347,8 @@ function getAreaPts(map, i, j){
 }
 
 
-function getAdjNodes(map, i, j) {
-    adjNodes = {
+function getAdjNodes(map, i, j) { // returns list of adjacent nodes
+    adjNodes = { // list of directions
         "nw" : map[j - 1]?.[i - 1],
         "n"  : map[j - 1]?.[i],
         "ne" : map[j - 1]?.[i + 1],
@@ -324,7 +368,7 @@ function getAdjNodes(map, i, j) {
     return adjNodes
 }
 
-function runForAll(func) {
+function runForAll(func) { // run for all i, j
     for (let j = 0; j < mapLength; j++) {
         for (let i = 0; i < mapSize; i++) {
             func(i, j)
@@ -332,7 +376,7 @@ function runForAll(func) {
     }
 }
 
-function runForAdjacent(func, io, jo) {
+function runForAdjacent(func, io, jo) { // run for adjacent i, j
     for (let j = -1; j < 2; j++) {
         for (let i = -1; i < 2; i++) {
             func(io+i, jo+j);
@@ -340,40 +384,20 @@ function runForAdjacent(func, io, jo) {
     }
 }
 
-function rand(min, max) {
+function rand(min, max) { // rand between min/max
     return Math.floor(Math.random()*(max - min + 1)) + min
 }
 
-function gameLoop(now) {
-    let w = bgr.width
-    let h = bgr.height
-    bgrctx.clearRect(0, 0, w, h);
+function gameLoop(now) { // game animation loop
+    bgrctx.clearRect(0, 0, bgr.width, bgr.height);
 
     drawBackground()
     drawMap(bgrMap)
     requestAnimationFrame(gameLoop);
 }
 
-function resize() {
-    const dpr = window.devicePixelRatio || 1;
-    // const d = 3
-    // const s = Math.round(Math.pow(10,d) * window.innerWidth * dpr / bgr.width) / Math.pow(10,d)
-
-    // runForAll((i, j) => {
-    //     node = bgrMap[j][i]
-    //     node.x *= s
-    //     node.y *= s
-
-    //     node.border.nx *= s
-    //     node.border.ny *= s
-    //     node.border.ex *= s
-    //     node.border.ey *= s
-    //     node.border.sx *= s
-    //     node.border.sy *= s
-    //     node.border.wx *= s
-    //     node.border.wy *= s
-        
-    // })
+function resize() { // resize window
+    const dpr = window.devicePixelRatio || 1; // idk what this does 
 
     bgr.style.width = window.innerWidth + "px";
     bgr.style.height = window.innerHeight + "px";
@@ -381,7 +405,8 @@ function resize() {
     bgr.width = window.innerWidth * dpr;
     bgr.height = window.innerHeight * dpr;
 
-    nodeGap = bgr.width / mapSize
+    nodeGap = bgr.width / (mapSize - 1)
+    topNode = scrollPos/nodeGap
 }
 
 window.addEventListener('resize', resize);
