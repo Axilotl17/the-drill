@@ -37,24 +37,24 @@ function populateNodes(map){
 
             if(j>0){ // checking for existing border northward
                 node.border.nx = map[j-1][i].border.sx;
-                node.border.ny = map[j-1][i].border.sy - nodeGap;
+                node.border.ny = map[j-1][i].border.sy - 1;
             } else {
-                node.border.nx = (Math.random() - 0.5) * (noise * nodeGap);
-                node.border.ny = (-0.5 * nodeGap) + (Math.random() - 0.5) * (noise * nodeGap);
+                node.border.nx = (Math.random() - 0.5) * noise;
+                node.border.ny = -0.5 + (Math.random() - 0.5) * noise;
             }
 
-            node.border.ex = (0.5 * nodeGap) + (Math.random() - 0.5) * (noise * nodeGap);
-            node.border.ey = (Math.random() - 0.5) * (noise * nodeGap);
+            node.border.ex = 0.5 + (Math.random() - 0.5) * noise;
+            node.border.ey = (Math.random() - 0.5) * noise;
 
-            node.border.sx = (Math.random() - 0.5) * (noise * nodeGap);
-            node.border.sy = (0.5 * nodeGap) + (Math.random() - 0.5) * (noise * nodeGap);
+            node.border.sx = (Math.random() - 0.5) * noise;
+            node.border.sy = 0.5 + (Math.random() - 0.5) * noise;
 
             if(i>0){ // checking for existing border westward
-                node.border.wx = row[i-1].border.ex - nodeGap;
+                node.border.wx = row[i-1].border.ex - 1;
                 node.border.wy = row[i-1].border.ey;
             } else {
-                node.border.wx = (-0.5 * nodeGap) + (Math.random() - 0.5) * (noise * nodeGap);
-                node.border.wy = (Math.random() - 0.5) * (noise * nodeGap);
+                node.border.wx = -0.5 + (Math.random() - 0.5) * noise;
+                node.border.wy = (Math.random() - 0.5) * noise;
             }
 
             row.push(node)
@@ -213,14 +213,14 @@ function getAreaPts(map, i, j){
     const nb = node.border
 
     const sb = {
-        "nx" : (node.i * nodeGap) + nb.nx,
-        "ny" : (node.j * nodeGap) + nb.ny,
-        "ex" : (node.i * nodeGap) + nb.ex,
-        "ey" : (node.j * nodeGap) + nb.ey,
-        "sx" : (node.i * nodeGap) + nb.sx,
-        "sy" : (node.j * nodeGap) + nb.sy,
-        "wx" : (node.i * nodeGap) + nb.wx,
-        "wy" : (node.j * nodeGap) + nb.wy,
+        "nx" : (node.i + nb.nx) * nodeGap,
+        "ny" : (node.j + nb.ny) * nodeGap,
+        "ex" : (node.i + nb.ex) * nodeGap,
+        "ey" : (node.j + nb.ey) * nodeGap,
+        "sx" : (node.i + nb.sx) * nodeGap,
+        "sy" : (node.j + nb.sy) * nodeGap,
+        "wx" : (node.i + nb.wx) * nodeGap,
+        "wy" : (node.j + nb.wy) * nodeGap,
     };
 
 
@@ -231,70 +231,70 @@ function getAreaPts(map, i, j){
 
     if(Object.keys(adjNodes).filter(key => adjNodes[key].color === nc).length === 8){
         points.push(
-            [(nNode.i * nodeGap) + nNode.border.wx, (nNode.j * nodeGap) + nNode.border.wy],
-            [(nNode.i * nodeGap) + nNode.border.ex, (nNode.j * nodeGap) + nNode.border.ey],
-            [(eNode.i * nodeGap) + eNode.border.nx, (eNode.j * nodeGap) + eNode.border.ny],
-            [(eNode.i * nodeGap) + eNode.border.sx, (eNode.j * nodeGap) + eNode.border.sy],
-            [(sNode.i * nodeGap) + sNode.border.ex, (sNode.j * nodeGap) + sNode.border.ey],
-            [(sNode.i * nodeGap) + sNode.border.wx, (sNode.j * nodeGap) + sNode.border.wy],
-            [(wNode.i * nodeGap) + wNode.border.sx, (wNode.j * nodeGap) + wNode.border.sy],
-            [(wNode.i * nodeGap) + wNode.border.nx, (wNode.j * nodeGap) + wNode.border.ny]
+            [(nNode.i + nNode.border.wx) * nodeGap, (nNode.j + nNode.border.wy) * nodeGap],
+            [(nNode.i + nNode.border.ex) * nodeGap, (nNode.j + nNode.border.ey) * nodeGap],
+            [(eNode.i + eNode.border.nx) * nodeGap, (eNode.j + eNode.border.ny) * nodeGap],
+            [(eNode.i + eNode.border.sx) * nodeGap, (eNode.j + eNode.border.sy) * nodeGap],
+            [(sNode.i + sNode.border.ex) * nodeGap, (sNode.j + sNode.border.ey) * nodeGap],
+            [(sNode.i + sNode.border.wx) * nodeGap, (sNode.j + sNode.border.wy) * nodeGap],
+            [(wNode.i + wNode.border.sx) * nodeGap, (wNode.j + wNode.border.sy) * nodeGap],
+            [(wNode.i + wNode.border.nx) * nodeGap, (wNode.j + wNode.border.ny) * nodeGap]
         );
         return points;
     }
 
     if (nwSameColor && !(nNodeColor > nc && nNodeColor === wNodeColor)) {
         const b = nwNode.border;
-        if (!wSameColor) points.push([(nwNode.i * nodeGap) + b.sx, (nwNode.j * nodeGap) + b.sy]);
-        points.push([(nwNode.i * nodeGap) + b.ex, (nwNode.j * nodeGap) + b.ey]);
+        if (!wSameColor) points.push([(nwNode.i + b.sx) * nodeGap, (nwNode.j + b.sy) * nodeGap]);
+        points.push([(nwNode.i + b.ex) * nodeGap, (nwNode.j + b.ey) * nodeGap]);
     }
 
     if (nSameColor) {
         const b = nNode.border;
-        if (!nwSameColor) points.push([(nNode.i * nodeGap) + b.wx, (nNode.j * nodeGap) + b.wy]);
-        points.push([(nNode.i * nodeGap) + b.ex, (nNode.j * nodeGap) + b.ey]);
+        if (!nwSameColor) points.push([(nNode.i + b.wx) * nodeGap, (nNode.j + b.wy) * nodeGap]);
+        points.push([(nNode.i + b.ex) * nodeGap, (nNode.j + b.ey) * nodeGap]);
     } else {
         points.push([sb.nx, sb.ny]);
     }
 
     if (neSameColor && !(eNodeColor > nc && eNodeColor === nNodeColor)) {
         const b = neNode.border;
-        if (!nSameColor) points.push([(neNode.i * nodeGap) + b.wx, (neNode.j * nodeGap) + b.wy]);
-        points.push([(neNode.i * nodeGap) + b.sx, (neNode.j * nodeGap) + b.sy]);
+        if (!nSameColor) points.push([(neNode.i + b.wx) * nodeGap, (neNode.j + b.wy) * nodeGap]);
+        points.push([(neNode.i + b.sx) * nodeGap, (neNode.j + b.sy) * nodeGap]);
     }
 
     if (eSameColor) {
         const b = eNode.border;
-        if (!neSameColor) points.push([(eNode.i * nodeGap) + b.nx, (eNode.j * nodeGap) + b.ny]);
-        points.push([(eNode.i * nodeGap) + b.sx, (eNode.j * nodeGap) + b.sy]);
+        if (!neSameColor) points.push([(eNode.i + b.nx) * nodeGap, (eNode.j + b.ny) * nodeGap]);
+        points.push([(eNode.i + b.sx) * nodeGap, (eNode.j + b.sy) * nodeGap]);
     } else {
         points.push([sb.ex, sb.ey]);
     }
 
     if (seSameColor && !(sNodeColor > nc && sNodeColor === eNodeColor)) {
         const b = seNode.border;
-        if (!eSameColor) points.push([(seNode.i * nodeGap) + b.nx, (seNode.j * nodeGap) + b.ny]);
-        points.push([(seNode.i * nodeGap) + b.wx, (seNode.j * nodeGap) + b.wy]);
+        if (!eSameColor) points.push([(seNode.i + b.nx) * nodeGap, (seNode.j + b.ny) * nodeGap]);
+        points.push([(seNode.i + b.wx) * nodeGap, (seNode.j + b.wy) * nodeGap]);
     }
 
     if (sSameColor) {
         const b = sNode.border;
-        if (!seSameColor) points.push([(sNode.i * nodeGap) + b.ex, (sNode.j * nodeGap) + b.ey]);
-        points.push([(sNode.i * nodeGap) + b.wx, (sNode.j * nodeGap) + b.wy]);
+        if (!seSameColor) points.push([(sNode.i + b.ex) * nodeGap, (sNode.j + b.ey) * nodeGap]);
+        points.push([(sNode.i + b.wx) * nodeGap, (sNode.j + b.wy) * nodeGap]);
     } else {
         points.push([sb.sx, sb.sy]);
     }
 
     if (swSameColor && !(wNodeColor > nc && wNodeColor === sNodeColor)) {
         const b = swNode.border;
-        if (!sSameColor) points.push([(swNode.i * nodeGap) + b.ex, (swNode.j * nodeGap) + b.ey]);
-        points.push([(swNode.i * nodeGap) + b.nx, (swNode.j * nodeGap) + b.ny]);
+        if (!sSameColor) points.push([(swNode.i + b.ex) * nodeGap, (swNode.j + b.ey) * nodeGap]);
+        points.push([(swNode.i + b.nx) * nodeGap, (swNode.j + b.ny) * nodeGap]);
     }
 
     if (wSameColor) {
         const b = wNode.border;
-        if (!swSameColor) points.push([(wNode.i * nodeGap) + b.sx, (wNode.j * nodeGap) + b.sy]);
-        points.push([(wNode.i * nodeGap) + b.nx, (wNode.j * nodeGap) + b.ny]);
+        if (!swSameColor) points.push([(wNode.i + b.sx) * nodeGap, (wNode.j + b.sy) * nodeGap]);
+        points.push([(wNode.i + b.nx) * nodeGap, (wNode.j + b.ny) * nodeGap]);
     } else {
         points.push([sb.wx, sb.wy]);
     }
