@@ -20,9 +20,9 @@ const layers = {
         'background' : ["rgb(135, 206, 235)"],
         'palettes' : {
             'grass' : [
+                "rgb(115, 150, 85)",
                 "rgb(96, 133, 72)",
                 "rgb(78, 115, 60)",
-                "rgb(115, 150, 85)",
             ],
             'walls' : [
                 "rgb(130, 130, 135)",
@@ -172,12 +172,10 @@ function genBackground() { // places clusters on background
     }
     // genCluster(bgrMap, mapSize/2, 30, 1, 1, 0) // debug
     
-    for(j = landscapeHeight; j<mapLength; j++) {
+    for(j = landscapeHeight - 3; j<mapLength; j++) {
         tilePos = [0, 1, mapSize-2, mapSize-1]
         if(Math.random() > 0.5) tilePos.push(2)
         if(Math.random() > 0.5) tilePos.push(mapSize-3)
-
-        console.log(tilePos)
 
         tilePos.forEach(i => {
             const r = Math.random()
@@ -188,16 +186,17 @@ function genBackground() { // places clusters on background
 
             tile = bgrMap[j][i]
 
-            tile.layer = getLayer(j)
             tile.palette = "walls"
             tile["color"] = color
         })
     }
 
+    genGrass(bgrMap);
+
     runForAll((i, j) => {
         bgrMap[j][i].realized = getAreaPts(bgrMap, i, j)
     })
-}  
+} 
 
 /**
  * 
@@ -227,6 +226,73 @@ function genCluster(map, si, sj, r, noise, color) { // generates a cluster on a 
                 tile.layer = getLayer(j)
                 tile.palette = "main"
                 tile["color"] = color
+            }
+        }
+    }
+}
+
+function genGrass(map) {
+    const center = Math.round(mapSize/2)
+    const layerVariance = 0.2
+    const middleMargin = 7
+
+    let d = 0
+    for(i = center; i<mapSize; i++) {
+        if(i > center + middleMargin){
+            if(d>=0 && Math.random() < layerVariance) d--
+            if(d<=0 && Math.random() < layerVariance) d++
+        }
+        map[landscapeHeight - 3 + d][i].palette = "grass"
+        map[landscapeHeight - 3 + d][i]["color"] = 0
+        for(j = landscapeHeight-10; j<landscapeHeight - 3 + d; j++) {
+            if(map[j][i].palette === "main" || map[j][i].palette === "walls") {
+                delete map[j][i].palette
+                map[j][i].color = -1
+            }
+        }
+        for(j = landscapeHeight - 2 + d; j<landscapeHeight; j++) {
+            const r = Math.random()/(j - landscapeHeight + 3 - d)
+            const tile = map[j][i]
+            if(r>0.6) {
+                tile.palette = "grass"
+                tile.color = 0
+            } else if(r>0.4) {
+                tile.palette = "grass"
+                tile.color = 1
+            } else if (!("palette" in tile)){
+                tile.palette = "main"
+                tile.color = 3
+            }
+        }
+    }
+
+    d = 0
+    for(i = center; i>=0; i--) {
+        console.log(i)
+        if(i < center - middleMargin){
+            if(d>=0 && Math.random() < layerVariance) d--
+            if(d<=0 && Math.random() < layerVariance) d++
+        }
+        map[landscapeHeight - 3 + d][i].palette = "grass"
+        map[landscapeHeight - 3 + d][i]["color"] = 0
+        for(j = landscapeHeight-10; j<landscapeHeight - 3 + d; j++) {
+            if(map[j][i].palette === "main" || map[j][i].palette === "walls") {
+                delete map[j][i].palette
+                map[j][i].color = -1
+            }
+        }
+        for(j = landscapeHeight - 2 + d; j<landscapeHeight; j++) {
+            const r = Math.random()/(j - landscapeHeight + 3 - d)
+            const tile = map[j][i]
+            if(r>0.6) {
+                tile.palette = "grass"
+                tile.color = 0
+            } else if(r>0.4) {
+                tile.palette = "grass"
+                tile.color = 1
+            } else if (!("palette" in tile)){
+                tile.palette = "main"
+                tile.color = 3
             }
         }
     }
@@ -299,11 +365,6 @@ function drawFPS(fps, ms) {
     bgrctx.fillStyle = "white";
     bgrctx.fillText(text, x + m, y - m + h);
 
-}
-
-function drawBackground() {
-    bgrctx.fillStyle = colors[0]
-    bgrctx.fillRect(0, Math.max(landscapeHeight*nodeGap - scrollPos, 0 ), bgr.width, bgr.height)
 }
 
 function getAllClusters(map) { // UNUSED may use later so not deleting
