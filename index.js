@@ -3,20 +3,20 @@ const bgrctx = bgr.getContext('2d');
 
 const mapSize = 60
 const mapLength = 100
-const nodeGap = bgr.width / mapSize
+var nodeGap
 
 var bgrMap = []
 
 var colors = [
     "rgb(122, 90, 58)",
     "rgba(132, 100, 72, 1)",
-    "rgb(104, 77, 54)",
+    "rgba(104, 77, 54, 1)",
     "rgba(120, 97, 70, 1)",
 ]
 
+resize()
 populateNodes(bgrMap, 40)
 genBackground()
-resize()
 
 var scrollPos = 0
 //var topNode = 
@@ -25,21 +25,19 @@ gameLoop()
 
 function populateNodes(map){
     for(j=0; j<mapLength; j++){
-        const noise = .3
+        const noise = 0.2
         row = []
         for(i=0; i<mapSize; i++) {
             node = {
                 "color" : 0,
                 "i" : i,
                 "j" : j,
-                "x" : nodeGap*i,
-                "y" : nodeGap*j,
                 "border" : {}
             }
 
             if(j>0){ // checking for existing border northward
-                node.border.nx = nodeGap - map[j-1][i].border.sx;
-                node.border.ny = map[j-1][i].border.sy;
+                node.border.nx = map[j-1][i].border.sx;
+                node.border.ny = map[j-1][i].border.sy - nodeGap;
             } else {
                 node.border.nx = (Math.random() - 0.5) * (noise * nodeGap);
                 node.border.ny = (-0.5 * nodeGap) + (Math.random() - 0.5) * (noise * nodeGap);
@@ -52,8 +50,8 @@ function populateNodes(map){
             node.border.sy = (0.5 * nodeGap) + (Math.random() - 0.5) * (noise * nodeGap);
 
             if(i>0){ // checking for existing border westward
-                node.border.wx = row[i-1].border.ex;
-                node.border.wy = nodeGap - row[i-1].border.ey;
+                node.border.wx = row[i-1].border.ex - nodeGap;
+                node.border.wy = row[i-1].border.ey;
             } else {
                 node.border.wx = (-0.5 * nodeGap) + (Math.random() - 0.5) * (noise * nodeGap);
                 node.border.wy = (Math.random() - 0.5) * (noise * nodeGap);
@@ -66,17 +64,17 @@ function populateNodes(map){
 }
 
 function genBackground() {
-    const bgrGroundTop = 30
-    // for(n = bgrGroundTop; n<mapLength; n+=2) {
-    //     genCluster(bgrMap, rand(0, mapSize), n, 3, 2, 1)
-    // }
-    // for(n = bgrGroundTop; n<mapLength; n+=2) {
-    //     genCluster(bgrMap, rand(0, mapSize), n, 2, 3, 2)
-    // }
-    // for(n = bgrGroundTop; n<mapLength; n+=4) {
-    //     genCluster(bgrMap, rand(0, mapSize), n, 1, 1, 3)
-    // }
-    genCluster(bgrMap, mapSize/2, 30, 3, 3, 1)
+    const bgrGroundTop = 0
+    for(n = bgrGroundTop; n<mapLength; n+=2) {
+        genCluster(bgrMap, rand(0, mapSize), n, 3, 2, 1)
+    }
+    for(n = bgrGroundTop; n<mapLength; n+=2) {
+        genCluster(bgrMap, rand(0, mapSize), n, 2, 3, 2)
+    }
+    for(n = bgrGroundTop; n<mapLength; n+=4) {
+        genCluster(bgrMap, rand(0, mapSize), n, 1, 1, 3)
+    }
+    //genCluster(bgrMap, mapSize/2, 7, 1, 1, 1)
 }  
 
 /**
@@ -125,14 +123,29 @@ function drawMap(map){
         bgrctx.closePath();
 
         bgrctx.fillStyle = colors[node.color];
+        bgrctx.strokeStyle = colors[node.color]
+        bgrctx.lineCap = "round"
+        bgrctx.lineWidth = 1
         bgrctx.fill();
-        //drawNode(node);
+        bgrctx.stroke();
     })
+
+    // runForAll((i, j) => {
+    //     drawNode(map[j][i]);
+    // })
+}
+
+function drawNode(node){
+    bgrctx.strokeStyle = "black"
+    bgrctx.lineWidth = 1
+    bgrctx.beginPath();
+    bgrctx.arc(node.i * nodeGap, node.j * nodeGap, (node.color+2)*nodeGap/16, 0, 6.2832);
+    bgrctx.stroke();
 }
 
 function drawBackground() {
     bgrctx.fillStyle = colors[0]
-    bgrctx.fillRect(0, Math.min(bgr.height/2 - scrollPos), bgr.width, bgr.height)
+    bgrctx.fillRect(0, Math.max(25*nodeGap - scrollPos, 0 ), bgr.width, bgr.height)
 }
 
 // unused
@@ -162,7 +175,7 @@ function getAllClusters(map) {
 
             // Push neighbors properly
             runForAdjacent((ni, nj) => {
-                stack.push([ni, nj]);  // <-- FIXED
+                stack.push([ni, nj]);
             }, i, j);
         }
 
@@ -172,24 +185,30 @@ function getAllClusters(map) {
 }
 
 function getAreaPts(map, i, j){
+    /*
+    this function is pure magic. please do not ask how it works.
+    */ 
+
     const points = []
-    node = map[j][i]
+    const node = map[j][i]
     adjNodes = getAdjNodes(map, i, j)
 
     // cache neighbors + colors + borders for speed
-    const nw = adjNodes.nw, n = adjNodes.n, ne = adjNodes.ne, e = adjNodes.e;
-    const se = adjNodes.se, s = adjNodes.s, sw = adjNodes.sw, w = adjNodes.w;
+    const nwNode = adjNodes.nw, nNode = adjNodes.n, neNode = adjNodes.ne, eNode = adjNodes.e;
+    const seNode = adjNodes.se, sNode = adjNodes.s, swNode = adjNodes.sw, wNode = adjNodes.w;
 
+    const nNodeColor = nNode?.color, eNodeColor = eNode?.color, sNodeColor = sNode?.color, wNodeColor = wNode?.color;
+    
     const nc = node.color;
 
-    const cNW = adjNodes.nw && adjNodes.nw.color === nc;
-    const cN  = n  && n.color  === nc;
-    const cNE = ne && ne.color === nc;
-    const cE  = e  && e.color  === nc;
-    const cSE = se && se.color === nc;
-    const cS  = s  && s.color  === nc;
-    const cSW = sw && sw.color === nc;
-    const cW  = w  && w.color  === nc;
+    const nwSameColor = nwNode && nwNode.color === nc;
+    const nSameColor  = nNode  && nNodeColor  === nc;
+    const neSameColor = neNode && neNode.color === nc;
+    const eSameColor  = eNode  && eNodeColor  === nc;
+    const seSameColor = seNode && seNode.color === nc;
+    const sSameColor  = sNode  && sNodeColor  === nc;
+    const swSameColor = swNode && swNode.color === nc;
+    const wSameColor  = wNode  && wNodeColor  === nc;
 
     const nb = node.border
 
@@ -204,7 +223,6 @@ function getAreaPts(map, i, j){
         "wy" : (node.j * nodeGap) + nb.wy,
     };
 
-    const nw
 
     /* 
     the following code is an amalgamation of ifs and elses that somehow formulates
@@ -213,84 +231,77 @@ function getAreaPts(map, i, j){
 
     if(Object.keys(adjNodes).filter(key => adjNodes[key].color === nc).length === 8){
         points.push(
-            [n.border.wx, n.border.wy],
-            [n.border.ex, n.border.ey],
-            [e.border.nx, e.border.ny],
-            [e.border.sx, e.border.sy],
-            [s.border.ex, s.border.ey],
-            [s.border.wx, s.border.wy],
-            [w.border.sx, w.border.sy],
-            [w.border.nx, w.border.ny]
+            [(nNode.i * nodeGap) + nNode.border.wx, (nNode.j * nodeGap) + nNode.border.wy],
+            [(nNode.i * nodeGap) + nNode.border.ex, (nNode.j * nodeGap) + nNode.border.ey],
+            [(eNode.i * nodeGap) + eNode.border.nx, (eNode.j * nodeGap) + eNode.border.ny],
+            [(eNode.i * nodeGap) + eNode.border.sx, (eNode.j * nodeGap) + eNode.border.sy],
+            [(sNode.i * nodeGap) + sNode.border.ex, (sNode.j * nodeGap) + sNode.border.ey],
+            [(sNode.i * nodeGap) + sNode.border.wx, (sNode.j * nodeGap) + sNode.border.wy],
+            [(wNode.i * nodeGap) + wNode.border.sx, (wNode.j * nodeGap) + wNode.border.sy],
+            [(wNode.i * nodeGap) + wNode.border.nx, (wNode.j * nodeGap) + wNode.border.ny]
         );
         return points;
     }
 
-    if (!cNW) {
-        if (!cW && cSW) points.push([sb.wx, sb.wy]);
-        if (!cN) points.push([sb.nx, sb.ny]);
+    if (nwSameColor && !(nNodeColor > nc && nNodeColor === wNodeColor)) {
+        const b = nwNode.border;
+        if (!wSameColor) points.push([(nwNode.i * nodeGap) + b.sx, (nwNode.j * nodeGap) + b.sy]);
+        points.push([(nwNode.i * nodeGap) + b.ex, (nwNode.j * nodeGap) + b.ey]);
+    }
+
+    if (nSameColor) {
+        const b = nNode.border;
+        if (!nwSameColor) points.push([(nNode.i * nodeGap) + b.wx, (nNode.j * nodeGap) + b.wy]);
+        points.push([(nNode.i * nodeGap) + b.ex, (nNode.j * nodeGap) + b.ey]);
     } else {
-        const b = nw.border;
-        if (!cW) points.push([(nw.i * nodeGap) + b.sx, b.sy]);
-        points.push([(nw.i * nodeGap) + b.ex, (nw.j * nodeGap) + b.ey]);
-        if (cNE && !cN) points.push([sb.nx, sb.ny]);
+        points.push([sb.nx, sb.ny]);
     }
 
-    if (cN) {
-        const b = n.border;
-        if (!cNW) points.push([(n.i * nodeGap) + b.wx, b.wy]);
-        points.push([(n.i * nodeGap) + b.ex, b.ey]);
+    if (neSameColor && !(eNodeColor > nc && eNodeColor === nNodeColor)) {
+        const b = neNode.border;
+        if (!nSameColor) points.push([(neNode.i * nodeGap) + b.wx, (neNode.j * nodeGap) + b.wy]);
+        points.push([(neNode.i * nodeGap) + b.sx, (neNode.j * nodeGap) + b.sy]);
     }
 
-    if (!cNE) {
-        if (!cN && cNW) points.push([sb.nx, sb.ny]);
-        if (!cE) points.push([sb.ex, sb.ey]);
+    if (eSameColor) {
+        const b = eNode.border;
+        if (!neSameColor) points.push([(eNode.i * nodeGap) + b.nx, (eNode.j * nodeGap) + b.ny]);
+        points.push([(eNode.i * nodeGap) + b.sx, (eNode.j * nodeGap) + b.sy]);
     } else {
-        const b = ne.border;
-        if (!cN) points.push([b.wx, b.wy]);
-        points.push([b.sx, b.sy]);
-        if (cSE && !cE) points.push([sb.ex, sb.ey]);
+        points.push([sb.ex, sb.ey]);
     }
 
-    if (cE) {
-        const b = e.border;
-        if (!cNE) points.push([b.nx, b.ny]);
-        points.push([b.sx, b.sy]);
+    if (seSameColor && !(sNodeColor > nc && sNodeColor === eNodeColor)) {
+        const b = seNode.border;
+        if (!eSameColor) points.push([(seNode.i * nodeGap) + b.nx, (seNode.j * nodeGap) + b.ny]);
+        points.push([(seNode.i * nodeGap) + b.wx, (seNode.j * nodeGap) + b.wy]);
     }
 
-    if (!cSE) {
-        if (!cE && cNE) points.push([sb.ex, sb.ey]);
-        if (!cS) points.push([sb.sx, sb.sy]);
+    if (sSameColor) {
+        const b = sNode.border;
+        if (!seSameColor) points.push([(sNode.i * nodeGap) + b.ex, (sNode.j * nodeGap) + b.ey]);
+        points.push([(sNode.i * nodeGap) + b.wx, (sNode.j * nodeGap) + b.wy]);
     } else {
-        const b = se.border;
-        if (!cE) points.push([b.nx, b.ny]);
-        points.push([b.wx, b.wy]);
-        if (cSW && !cS) points.push([sb.sx, sb.sy]);
+        points.push([sb.sx, sb.sy]);
     }
 
-    if (cS) {
-        const b = s.border;
-        if (!cSE) points.push([b.ex, b.ey]);
-        points.push([b.wx, b.wy]);
+    if (swSameColor && !(wNodeColor > nc && wNodeColor === sNodeColor)) {
+        const b = swNode.border;
+        if (!sSameColor) points.push([(swNode.i * nodeGap) + b.ex, (swNode.j * nodeGap) + b.ey]);
+        points.push([(swNode.i * nodeGap) + b.nx, (swNode.j * nodeGap) + b.ny]);
     }
 
-    if (!cSW) {
-        if (!cS && cSE) points.push([sb.sx, sb.sy]);
-        if (!cW) points.push([sb.wx, sb.wy]);
+    if (wSameColor) {
+        const b = wNode.border;
+        if (!swSameColor) points.push([(wNode.i * nodeGap) + b.sx, (wNode.j * nodeGap) + b.sy]);
+        points.push([(wNode.i * nodeGap) + b.nx, (wNode.j * nodeGap) + b.ny]);
     } else {
-        const b = sw.border;
-        if (!cS) points.push([b.ex, b.ey]);
-        points.push([b.nx, b.ny]);
-        if (cNW && !cW) points.push([sb.wx, sb.wy]);
-    }
-
-    if (cW) {
-        const b = w.border;
-        if (!cSW) points.push([b.sx, b.sy]);
-        points.push([b.nx, b.ny]);
+        points.push([sb.wx, sb.wy]);
     }
 
     return points;
 }
+
 
 function getAdjNodes(map, i, j) {
     adjNodes = {
@@ -344,33 +355,33 @@ function gameLoop(now) {
 }
 
 function resize() {
-
     const dpr = window.devicePixelRatio || 1;
-    const d = 3
-    const s = Math.round(Math.pow(10,d) * window.innerWidth * dpr / bgr.width) / Math.pow(10,d)
-    console.log(s)
+    // const d = 3
+    // const s = Math.round(Math.pow(10,d) * window.innerWidth * dpr / bgr.width) / Math.pow(10,d)
 
-    runForAll((i, j) => {
-        node = bgrMap[j][i]
-        node.x *= s
-        node.y *= s
+    // runForAll((i, j) => {
+    //     node = bgrMap[j][i]
+    //     node.x *= s
+    //     node.y *= s
 
-        node.border.nx *= s
-        node.border.ny *= s
-        node.border.ex *= s
-        node.border.ey *= s
-        node.border.sx *= s
-        node.border.sy *= s
-        node.border.wx *= s
-        node.border.wy *= s
+    //     node.border.nx *= s
+    //     node.border.ny *= s
+    //     node.border.ex *= s
+    //     node.border.ey *= s
+    //     node.border.sx *= s
+    //     node.border.sy *= s
+    //     node.border.wx *= s
+    //     node.border.wy *= s
         
-    })
+    // })
 
     bgr.style.width = window.innerWidth + "px";
     bgr.style.height = window.innerHeight + "px";
 
     bgr.width = window.innerWidth * dpr;
     bgr.height = window.innerHeight * dpr;
+
+    nodeGap = bgr.width / mapSize
 }
 
 window.addEventListener('resize', resize);
