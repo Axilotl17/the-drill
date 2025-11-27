@@ -478,17 +478,8 @@ function getAreaPts(map, i, j){
     // checks for trivial case, where surrounded by like colors. just a shortcut to save time. 
     // can't check for trivial case where 0 adjacent like colors, creates errors.
     if(adjCount === 8){
-        points.push(
-            (nNode.i + nNode.border.wx) * nodeGap, (nNode.j + nNode.border.wy) * nodeGap,
-            (nNode.i + nNode.border.ex) * nodeGap, (nNode.j + nNode.border.ey) * nodeGap,
-            (eNode.i + eNode.border.nx) * nodeGap, (eNode.j + eNode.border.ny) * nodeGap,
-            (eNode.i + eNode.border.sx) * nodeGap, (eNode.j + eNode.border.sy) * nodeGap,
-            (sNode.i + sNode.border.ex) * nodeGap, (sNode.j + sNode.border.ey) * nodeGap,
-            (sNode.i + sNode.border.wx) * nodeGap, (sNode.j + sNode.border.wy) * nodeGap,
-            (wNode.i + wNode.border.sx) * nodeGap, (wNode.j + wNode.border.sy) * nodeGap,
-            (wNode.i + wNode.border.nx) * nodeGap, (wNode.j + wNode.border.ny) * nodeGap
-        );
-        return points;
+        return ["w","e","n","s"].map((d) => [nNode.i + nNode.border[d + "x"],
+                                             nNode.j + nNode.border[d + "y"]]).flat();
     }
 
     /* 
