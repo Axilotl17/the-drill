@@ -1,6 +1,11 @@
+const directions = ['n', 'e', 's', 'w'];
+const borderKeys = ['nx', 'ny', 'ex', 'ey', 'sx', 'sy', 'wx', 'wy'];
+
+
 function startGame() {
     resize()
     populateNodes(nodes)
+    console.log(nodes)
     genBackground()
 
     requestAnimationFrame(gameLoop);
@@ -21,14 +26,13 @@ const mapSize = 60  // in nodes
 const landscapeHeight = layers.topsoil.startHeight
 const mapLength = 200 // in nodes
 
-const directions = ['w', 'n', 'e', 's'];
-const borderKeys = ['nx', 'ny', 'ex', 'ey', 'sx', 'sy', 'wx', 'wy'];
-
 let last = performance.now(); // for fps
 let smoothed = 16.67; // start near 60fps
 
-var bgrMap = []
-var nodes = []
+const tiles = []
+const nodes = []
+
+var animations = []
 
 var nodeGap 
 var scrollPos = 0 // how much scrolled
@@ -46,7 +50,6 @@ function populateNodes(map){ // generate the nodes on a map
             const node = {
                 "i" : i, // the column of the node, int
                 "j" : j, // the row of the node, int
-                "border" : {}
             }
 
             /*
@@ -65,27 +68,37 @@ function populateNodes(map){ // generate the nodes on a map
             value between -noise/2 and +noise/2, (Math.random() - 0.5) * noise. this keeps things
             spicy. 
             */
+            let n = {}, e = {}, s = {}, w = {}
 
             if(j>0){ // checking for existing border northward
-                node.border.nx = map[j-1][i].border.sx; // if so adopt that border
-                node.border.ny = map[j-1][i].border.sy - 1;
+                const nsb = map[j-1][i].border.s // norther node southern border
+                n.i = nsb.i; // if so adopt that border
+                n.j = nsb.j - 1;
             } else {
-                node.border.nx = (Math.random() - 0.5) * noise;
-                node.border.ny = -0.5 + (Math.random() - 0.5) * noise;
+                n.i = (Math.random() - 0.5) * noise;
+                n.j = -0.5 + (Math.random() - 0.5) * noise;
             }
 
-            node.border.ex = 0.5 + (Math.random() - 0.5) * noise;
-            node.border.ey = (Math.random() - 0.5) * noise;
+            e.i = 0.5 + (Math.random() - 0.5) * noise;
+            e.j = (Math.random() - 0.5) * noise;
 
-            node.border.sx = (Math.random() - 0.5) * noise;
-            node.border.sy = 0.5 + (Math.random() - 0.5) * noise;
+            s.i = (Math.random() - 0.5) * noise;
+            s.j = 0.5 + (Math.random() - 0.5) * noise;
 
             if(i>0){ // checking for existing border westward
-                node.border.wx = row[i-1].border.ex - 1;
-                node.border.wy = row[i-1].border.ey;
+                const web = row[i-1].border.e // western node eastern border
+                w.i = web.i - 1;
+                w.j = web.j;
             } else {
-                node.border.wx = -0.5 + (Math.random() - 0.5) * noise;
-                node.border.wy = (Math.random() - 0.5) * noise;
+                w.i = -0.5 + (Math.random() - 0.5) * noise;
+                w.j = (Math.random() - 0.5) * noise;
+            }
+
+            node.border = {
+                "n" : n,
+                "e" : e,
+                "s" : s,
+                "w" : w
             }
 
             row.push(node)
@@ -99,27 +112,28 @@ function genBackground() { // places clusters on background
         const row = []
         for(let i=0; i<mapSize; i++) {
             const tile = {
+                'node' : nodes[j][i],
                 'layer' : getLayer(j),
                 'color' : -1
             }
             row.push(tile)
         }
-        bgrMap.push(row)
+        tiles.push(row)
     }
 
     const f = 25 // frequency. right now all cluster types are equally frequent.
     
     //starts at landscapeHeight to make room for landscape
     for(let n = landscapeHeight; n<mapLength; n += mapSize/f) { // the above can be changed by modifying a in n += a. 
-        genCluster(bgrMap, rand(0, mapSize), Math.round(n), 3, 1, 0)
+        genCluster(tiles, rand(0, mapSize), Math.round(n), 3, 1, 0)
     }
     for(let n = landscapeHeight; n<mapLength; n += mapSize/f) {
-        genCluster(bgrMap, rand(0, mapSize), Math.round(n), 1, 4, 1)
+        genCluster(tiles, rand(0, mapSize), Math.round(n), 1, 4, 1)
     }
     for(let n = landscapeHeight; n<mapLength; n += mapSize/f) {
-        genCluster(bgrMap, rand(0, mapSize), Math.round(n), 1, 1, 2)
+        genCluster(tiles, rand(0, mapSize), Math.round(n), 1, 1, 2)
     }
-    // genCluster(bgrMap, mapSize/2, 30, 1, 1, 0) // debug
+    // genCluster(tiles, mapSize/2, 30, 1, 1, 0) // debug
     
     for(let j = landscapeHeight - 3; j<mapLength; j++) {
         const tilePos = [0, 1, mapSize-2, mapSize-1]
@@ -133,18 +147,14 @@ function genBackground() { // places clusters on background
             } else if (r < 0.9){color = 1
             } else color = 2
 
-            const tile = bgrMap[j][i]
+            const tile = tiles[j][i]
 
             tile.palette = "walls"
             tile["color"] = color
         })
     }
 
-    genGrass(bgrMap);
-
-    runForAll((i, j) => {
-        bgrMap[j][i].realized = getAreaPts(bgrMap, i, j)
-    })
+    genGrass(tiles);
 } 
 
 /**
@@ -376,11 +386,10 @@ function drawDrillBit({height, width, thickness, extension, ridgeAngle, ridgeCou
         drlctx.fill()
     })
     
-    //independant of frame speed
+    // independant of frame speed
     //drillBitT += drillSpeed * (performance.now() - drillLast)
     //drillLast = performance.now()
 }
-
 
 function drawDrillPart(colors, {type, w, h, r, x=0, y=0, color}){ 
     switch(type) {
@@ -388,11 +397,11 @@ function drawDrillPart(colors, {type, w, h, r, x=0, y=0, color}){
             drlctx.beginPath();
             drlctx.fillStyle = colors[color] 
             drlctx.roundRect(
-                (x + (-w/2)), 
-                (y + (-h/2)), 
-                w, 
-                h, 
-                r
+                (x + (-w/2)) * nodeGap, 
+                (y + (-h/2)) * nodeGap, 
+                w * nodeGap, 
+                h * nodeGap, 
+                r * nodeGap
             )
 
             drlctx.fill()
@@ -400,7 +409,7 @@ function drawDrillPart(colors, {type, w, h, r, x=0, y=0, color}){
         case "circle" :
             drlctx.beginPath();
             drlctx.fillStyle = colors[color]
-            drlctx.arc(x, y, r, 0, 2 * Math.PI) 
+            drlctx.arc(x * nodeGap, y * nodeGap, r * nodeGap, 0, 2 * Math.PI) 
             drlctx.fill()
         break;
     }
@@ -432,6 +441,16 @@ function drawFPS(fps, ms) {
     bgrctx.font = "15px sans-serif";
     bgrctx.fillStyle = "white";
     bgrctx.fillText(text, x + m, y - m + h);
+}
+
+function updatePos() {
+
+}
+
+function getTilePath(tile) {
+    node = tile.node
+    b = node.border
+    return Object.keys(b).map([b.i + node.i, b.j + node.j])
 }
 
 function getAllClusters(map) { // UNUSED may use later so not deleting
@@ -467,209 +486,6 @@ function getAllClusters(map) { // UNUSED may use later so not deleting
         clusters.push(cluster);
     });
     return clusters;
-}
-
-function getAreaPts(map, i, j){
-
-    /*
-    this function is pure magic. please do not ask how it works.
-
-    the goal is that given a tile on a map, it will list out the points that make up its
-    realized border, where realized border is considering all neighbors and the interpolation
-    between them.
-
-    the realized border also must consider blank spaces left, where the highest priority color
-    (lowest index) fills in the blank space.
-
-    all of the above must also consider "fucky overlap" where 
-
-    x y
-    y z
-
-    what do x and z do when the two y's connect diagonally? what if x = z and they also want to
-    connect diagonally? again, goes to highest priority color.
-
-    the process of considering each neighbor (nw, n, ne, e, se, s, sw, w) and the effect it
-    has has been done by hand, and unless some poor soul wants to try and simplify the pattern
-    i won't be doing so.
-    */ 
-
-    const points = []
-    const node = nodes[j][i]
-    const tile = map[j][i]
-
-    const adjNodes = getAdjNodes(nodes, i, j)
-    const adjTiles = getAdjNodes(map, i, j)
-
-    // defining all adjacent nodes
-    const nwNode = adjNodes.nw, nNode = adjNodes.n, neNode = adjNodes.ne, eNode = adjNodes.e;
-    const seNode = adjNodes.se, sNode = adjNodes.s, swNode = adjNodes.sw, wNode = adjNodes.w;
-
-    // defining all adjacent tiles
-    const nwTile = adjTiles.nw, nTile = adjTiles.n, neTile = adjTiles.ne, eTile = adjTiles.e;
-    const seTile = adjTiles.se, sTile = adjTiles.s, swTile = adjTiles.sw, wTile = adjTiles.w;
-
-    // defining all adjacent tile colors
-    const nwTileColor = nwTile?.color, nTileColor = nTile?.color, neTileColor = neTile?.color, eTileColor = eTile?.color;
-    const seTileColor = seTile?.color, sTileColor = sTile?.color, swTileColor = swTile?.color, wTileColor = wTile?.color;
-
-    // defining all adjacent tile palettes
-    const nwTilePalette = nwTile?.palette, nTilePalette = nTile?.palette, neTilePalette = neTile?.palette, eTilePalette = eTile?.palette;
-    const seTilePalette = seTile?.palette, sTilePalette = sTile?.palette, swTilePalette = swTile?.palette, wTilePalette = wTile?.palette;
-
-    // shorthand for target color, palette, and border locations.
-    const tc = tile.color;
-    const tp = tile.palette;
-    const nb = node.border
-
-    // if target tile has color and palette as adjacent node
-    const nwSameColor = nwNode && nwTileColor === tc && nwTilePalette === tp;
-    const nSameColor  = nNode  && nTileColor  === tc && nTilePalette === tp;
-    const neSameColor = neNode && neTileColor === tc && neTilePalette === tp;
-    const eSameColor  = eNode  && eTileColor  === tc && eTilePalette === tp;
-    const seSameColor = seNode && seTileColor === tc && seTilePalette === tp;
-    const sSameColor  = sNode  && sTileColor  === tc && sTilePalette === tp;
-    const swSameColor = swNode && swTileColor === tc && swTilePalette === tp;
-    const wSameColor  = wNode  && wTileColor  === tc && wTilePalette === tp;
-
-    // if has to fill in blank space, given by the prefix of Diag.
-    // considers fucky overlap as well
-    const nw_nDiag = !nSameColor && !(nwTileColor === nTileColor && nwTilePalette === nTilePalette) && nwTileColor >= tc && nTileColor >= tc && wTileColor >= tc
-    const n_neDiag = !neSameColor && !(nTileColor === neTileColor && nTilePalette === neTilePalette) && nTileColor >= tc && neTileColor >= tc && eTileColor >= tc
-    const ne_eDiag = !eSameColor && !(neTileColor === eTileColor && neTilePalette === eTilePalette) && neTileColor >= tc && eTileColor >= tc && nTileColor >= tc
-    const e_seDiag = !seSameColor && !(eTileColor === seTileColor && eTilePalette === seTilePalette) && eTileColor >= tc && seTileColor >= tc && sTileColor >= tc
-    const se_sDiag = !sSameColor && !(seTileColor === sTileColor && seTilePalette === sTilePalette) && seTileColor >= tc && sTileColor >= tc && eTileColor >= tc
-    const s_swDiag = !swSameColor && !(sTileColor === swTileColor && sTilePalette === swTilePalette) && sTileColor >= tc && swTileColor >= tc && wTileColor >= tc
-    const sw_wDiag = !wSameColor && !(swTileColor === wTileColor && swTilePalette === wTilePalette) && swTileColor >= tc && wTileColor >= tc && sTileColor >= tc
-    const w_nwDiag = !nwSameColor && !(wTileColor === nwTileColor && wTilePalette === nwTilePalette) && wTileColor >= tc && nwTileColor >= tc && nTileColor >= tc
-
-    const sb = Object.fromEntries(borderKeys.map(key => [key, (node[key.endsWith('x') ? 'i' : 'j'] + nb[key])]));
-
-    // how many adjacent nodes have the same color
-    const adjCount = Object.keys(adjTiles).filter(key => adjTiles[key].color === tc && adjTiles[key].palette === tp).length
-
-    // checks for trivial case, where surrounded by like colors. just a shortcut to save time. 
-    // can't check for trivial case where 0 adjacent like colors, creates errors.
-    if(adjCount === 8){
-        return directions.map((d) => [nNode.i + nNode.border[d + "x"],
-                                      nNode.j + nNode.border[d + "y"]]).flat();
-    }
-
-    /* 
-    the following code is an amalgamation of ifs and elses that somehow formulates
-    coherent code. it is not understandable, it barely works, and it is slow.  
-
-    i have attempted to comment the first of the two cases, considering the ne and n adjacent nodes.
-    the others follow a pattern from those two, so it should in theory be possible to figure out 
-    those as well. good luck to you!
-
-    consider this line:
-    points.push((nwNode.i + b.ex), (nwNode.j + b.ey));
-    this adds the nw adj eastern border to the points list.
-    */
-
-    // if no fucky overlap between n adj and w adj
-    if(!(nTileColor > tc && nTileColor === wTileColor && nTilePalette === wTilePalette)) {
-        if (nwSameColor) { // if target node same color as nw adjacent node
-            const b = nwNode.border;
-            // this if statement is here because ne adj shares a border with w adj, so they would both 
-            // add this point. if w adj is adding it, then nw adj won't.
-            if (!wSameColor) points.push((nwNode.i + b.sx), (nwNode.j + b.sy));
-            // but this one goes to just nw adj and NOT n adj, with which it shares the border.
-            points.push((nwNode.i + b.ex), (nwNode.j + b.ey));
-        } else if (nw_nDiag) { // if need to fill blank space...
-            const b = nwNode.border;
-            // will add the point anyways.
-            points.push((nwNode.i + b.ex), (nwNode.j + b.ey));
-        }
-    }
-
-    if (nSameColor) { // if target node same color as n adjacent node
-        const b = nNode.border;
-        // same thing as before. doesn't add duplicate point if nw adj would add it.
-        if (!nwSameColor) points.push((nNode.i + b.wx), (nNode.j + b.wy));
-        points.push((nNode.i + b.ex), (nNode.j + b.ey));
-    } else {
-        // northern border only added if n adj is different color, regardless of nw adj and ne adj
-        points.push(sb.nx, sb.ny);
-        //if no fucky overlap...
-        if (n_neDiag && !(eTileColor > tc && eTileColor === nTileColor && eTilePalette === nTilePalette)) {
-            const b = nNode.border;
-            // fill blank space.
-            points.push((nNode.i + b.ex), (nNode.j + b.ey));
-        }
-    }
-
-    if(!(eTileColor > tc && eTileColor === nTileColor && eTilePalette === nTilePalette)){
-        if (neSameColor) {
-            const b = neNode.border;
-            if (!nSameColor) points.push((neNode.i + b.wx), (neNode.j + b.wy));
-            points.push((neNode.i + b.sx), (neNode.j + b.sy));
-        } else if (ne_eDiag) {
-            const b = neNode.border;
-            points.push((neNode.i + b.sx), (neNode.j + b.sy));
-        }
-    }
-
-    if (eSameColor) {
-        const b = eNode.border;
-        if (!neSameColor) points.push((eNode.i + b.nx), (eNode.j + b.ny));
-        points.push((eNode.i + b.sx), (eNode.j + b.sy));
-    } else {
-        points.push(sb.ex, sb.ey);
-        if (e_seDiag && !(sTileColor > tc && sTileColor === eTileColor && sTilePalette === eTilePalette)) {
-            const b = eNode.border;
-            points.push((eNode.i + b.sx), (eNode.j + b.sy));
-        }
-    }
-
-    if(!(sTileColor > tc && sTileColor === eTileColor && sTilePalette === eTilePalette)) {
-        if (seSameColor) {
-            const b = seNode.border;
-            if (!eSameColor) points.push((seNode.i + b.nx), (seNode.j + b.ny));
-            points.push((seNode.i + b.wx), (seNode.j + b.wy));
-        } else if (se_sDiag) {
-            const b = seNode.border;
-            points.push((seNode.i + b.wx), (seNode.j + b.wy));
-        }
-    }
-
-    if (sSameColor) {
-        const b = sNode.border;
-        if (!seSameColor) points.push((sNode.i + b.ex), (sNode.j + b.ey));
-        points.push((sNode.i + b.wx), (sNode.j + b.wy));
-    } else {
-        points.push(sb.sx, sb.sy);
-        if (s_swDiag && !(wTileColor > tc && wTileColor === sTileColor && wTilePalette === sTilePalette)) {
-            const b = sNode.border;
-            points.push((sNode.i + b.wx), (sNode.j + b.wy));
-        }
-    }
-
-    if(!(wTileColor > tc && wTileColor === sTileColor && wTilePalette === sTilePalette)) {
-        if (swSameColor) {
-            const b = swNode.border;
-            if (!sSameColor) points.push((swNode.i + b.ex), (swNode.j + b.ey));
-            points.push((swNode.i + b.nx), (swNode.j + b.ny));
-        } else if (sw_wDiag) {
-            const b = swNode.border;
-            points.push((swNode.i + b.nx), (swNode.j + b.ny));
-        }
-    }
-
-    if (wSameColor) {
-        const b = wNode.border;
-        if (!swSameColor) points.push((wNode.i + b.sx), (wNode.j + b.sy));
-        points.push((wNode.i + b.nx), (wNode.j + b.ny));
-    } else {
-        points.push(sb.wx, sb.wy);
-        if (w_nwDiag && !(nTileColor > tc && nTileColor === wTileColor && nTilePalette === wTilePalette)) {
-            const b = wNode.border;
-            points.push((wNode.i + b.nx), (wNode.j + b.ny));
-        }
-    }
-
-    return points;
 }
 
 function getAdjNodes(map, i, j) { // returns list of adjacent nodes
@@ -744,18 +560,18 @@ function gameLoop(now) { // game animation loop
     last = now;
     smoothed = smoothed * 0.9 + delta * 0.1;
 
-    drawMap(bgrMap)
+    //drawMap(tiles)
     drawFPS(Math.round(1000/smoothed), Math.round(smoothed))
     drawDrill(bgr.width / 2, nodeGap*20, 0.2)
 
-    for (let i = 0; i < animations.length;) {
-        const done = animations[i].draw(now);
-        if (done) {
-            animations.splice(i, 1);
-        } else {
-            i++
-        }
-    }
+    // for (let i = 0; i < animations.length;) {
+    //     const done = animations[i].draw(now);
+    //     if (done) {
+    //         animations.splice(i, 1);
+    //     } else {
+    //         i++
+    //     }
+    // }
 
     requestAnimationFrame(gameLoop);
 }
@@ -777,9 +593,6 @@ function resize() { // resize window
 
 window.addEventListener('resize', () => {
     resize()
-    runForAll((i, j) => {
-        bgrMap[j][i].realized = getAreaPts(bgrMap, i, j)
-    })
 });
 addEventListener("wheel", (e) => {
     const s = 5
@@ -799,7 +612,7 @@ function debugExpose(obj) {
 debugExpose({
     nodes,
     bgr,
-    bgrMap,
+    tiles,
     bgrctx,
     drlctx,
 })
