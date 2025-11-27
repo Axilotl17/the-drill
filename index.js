@@ -1,5 +1,3 @@
-drill.html
-
 function startGame() {
     resize()
     populateNodes(nodes)
@@ -31,6 +29,8 @@ var nodes = []
 
 var nodeGap
 var scrollPos = 0 // how much scrolled
+var drillLast = 0
+var drillBitT = 0.2
 
 startGame();
 
@@ -284,20 +284,100 @@ function drawMap(map){ //draws all visible tiles on given map
 function drawDrill(x, y, vDrill = 0, vScroll = 1) {
     drlctx.clearRect(0, 0, drl.width, drl.height);
 
-    const h = Math.sqrt(vScroll*vScroll + vDrill*vDrill)
-    const c = vScroll / h
-    const s = - vDrill / h
+    const a = - Math.tan(vDrill/vScroll)
+    const cosa = Math.cos(a)
+    const sina = Math.sin(a)
 
-    drlctx.setTransform(c, s, -s, c, x, y)
+    drlctx.setTransform(cosa, sina, -sina, cosa, x, y)
 
     const currentDrill = "basic"
     
     const drill = drills[currentDrill]
 
     drill.parts.forEach(part => drawDrillPart(drill.colors, part))
-
+    drawDrillBit(drill.drillBit, x, y, a, drill.colors)
     drlctx.setTransform(1, 0, 0, 1, 0, 0);
 }
+
+/**
+ * @param {*} param0 - drillBit object
+ * @param {*} x 
+ * @param {*} y 
+ * @param {*} a 
+ */
+function drawDrillBit({height, width, thickness, extension, ridgeAngle, ridgeCount, 
+    mainColor1, mainColor2, ridgeColor, drillSpeed}, x, y, a, colors) {
+
+    const cosa = Math.cos(a)
+    const sina = Math.sin(a)
+
+    const [h, w, th, e] = [height, width, thickness, extension].map(v => v * nodeGap);
+    
+    drlctx.setTransform(cosa, sina, -sina, cosa, x, y)
+    
+    const w0 = w*(2*drillBitT % 1)
+
+    drlctx.beginPath()
+    drlctx.moveTo(-w/2, 0)
+    drlctx.lineTo(w/2-w0, 0)
+    if(w0 < w/2){
+        drlctx.lineTo(w/2-w0, (2 * w0 * h) / w)
+        drlctx.lineTo(0, h)
+    } else {
+        drlctx.lineTo(w/2-w0, 2* h - ((2 * w0 * h) / w))
+    }
+    if(2*drillBitT % 2 < 1) {drlctx.fillStyle = colors[mainColor1]
+    } else drlctx.fillStyle = colors[mainColor2]
+    
+    drlctx.fill()
+
+    drlctx.beginPath()
+    drlctx.moveTo(w/2, 0)
+    drlctx.lineTo(w/2-w0, 0)
+    if(w0 > w/2){
+        drlctx.lineTo(w/2-w0, 2* h - ((2 * w0 * h) / w))
+        drlctx.lineTo(0, h)
+    } else {
+        drlctx.lineTo(w/2-w0, ((2 * w0 * h) / w))
+    }
+    if(2*drillBitT % 2 > 1) {drlctx.fillStyle = colors[mainColor1]
+    } else drlctx.fillStyle = colors[mainColor2]
+    drlctx.fill()
+
+    const cosb = Math.cos(ridgeAngle)
+    const sinb = Math.sin(ridgeAngle)
+
+    const l0 = (sinb*w)/(2*cosb)
+
+    const offsets = []
+    for(let n = 0; n<ridgeCount;n++) offsets.push(n/ridgeCount)
+
+    offsets.forEach(t0 => {
+        const l = h-((drillBitT + t0)% 1)*(h+l0)
+        let x1, x2
+
+        if(l > l0) {
+            x1 = (h-l)/((2*h/w)*cosb + sinb)
+            x2 = (h-l)/((2*h/w)*cosb - sinb)
+        } else {
+            x1 = (h-l)/((2*h/w)*cosb + sinb)
+            x2 = l/sinb
+        }
+
+        drlctx.setTransform(cosa, sina, -sina, cosa, x, y)
+        drlctx.transform(cosb, -sinb, sinb, cosb, 0, l)
+
+        drlctx.beginPath()
+        drlctx.roundRect(-x1-e, -th, x1+x2+2*e, 2*th, 5)
+        drlctx.fillStyle = colors[ridgeColor]
+        drlctx.fill()
+    })
+    
+    //independant of frame speed
+    //drillBitT += drillSpeed * (performance.now() - drillLast)
+    //drillLast = performance.now()
+}
+
 
 function drawDrillPart(colors, {type, w, h, r, x=0, y=0, color}){ 
     switch(type) {

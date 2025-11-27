@@ -69,23 +69,41 @@
             "parts" : [
                 {
                     "type" : "rrect",
-                    "y" : -2.3,
+                    "y" : -4.35,
                     "w" : 1.7,
                     "h" : 0.5,
                     "r" : 0.5,
-                    "color" : "dark" 
+                    "color" : "darkgray" 
+                },
+                {
+                    "type" : "rrect",
+                    "x" : -0.75,
+                    "y" : -4.1,
+                    "w" : 0.5,
+                    "h" : 1,
+                    "r" : 0.5,
+                    "color" : "darkgray" 
                 },
                 {
                     "type" : "rrect",
                     "x" : 0.75,
-                    "y" : -2.05,
+                    "y" : -4.1,
                     "w" : 0.5,
                     "h" : 1,
                     "r" : 0.5,
-                    "color" : "dark" 
+                    "color" : "darkgray" 
                 },
                 {
                     "type" : "rrect",
+                    "y" : -0.3,
+                    "w" : 1.2,
+                    "h" : 1,
+                    "r" : 0.2,
+                    "color" : "midgray" 
+                },
+                {
+                    "type" : "rrect",
+                    "y" : -2.05,
                     "w" : 2.5,
                     "h" : 3.5,
                     "r" : 0.5,
@@ -93,18 +111,44 @@
                 },
                 {
                     "type" : "circle",
+                    "y" : -2.45,
                     "r" : 0.9,
-                    "color" : "dark" 
+                    "color" : "darkgray" 
                 },
                 {
+                    "y" : -2.45,
                     "type" : "circle",
                     "r" : 0.6,
                     "color" : "window" 
+                },
+                {
+                    "type" : "rrect",
+                    "y" : -0.95,
+                    "w" : 1.7,
+                    "h" : 0.7,
+                    "r" : 0.5,
+                    "color" : "dark" 
                 }
             ],
+            "drillBit" :{
+                "height" : 1.2,
+                "width" : 1.6,
+                "thickness" : 0.1,
+                "extension" : 0.1,
+                "ridgeAngle" : 0.45,
+                "ridgeCount" : 4,
+                "mainColor1" : "gray",
+                "mainColor2" : "darkgray",
+                "ridgeColor" : "lightgray",
+                "drillSpeed" : 0.001
+            },
             "colors" : {
                 "body" : "rgb(255, 184, 55)",
-                "dark" : "rgb(92, 114, 112)",
+                "dark" : "rgb(250, 65, 28)",
+                "darkgray" : "rgb(92, 114, 112)",
+                "gray" : "rgb(132, 144, 152)",
+                "midgray" : "rgb(162, 165, 170)",
+                "lightgray" : "rgb(192, 200, 203)",
                 "window" : "rgb(115, 204, 240)"
             }
         }

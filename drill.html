@@ -23,16 +23,38 @@
             const h = 100
             const w = 100
             const th = 7 // thickness
-            const m = 5
+            const e = 5
             const b = 1 * Math.PI/7
+            const num = 4
 
+
+            const w0 = w*(2*t % 1)
 
             ctx.beginPath()
             ctx.moveTo(-w/2, 0)
-            ctx.lineTo(w/2, 0)
-            ctx.lineTo(0, h)
-            ctx.fillStyle = "gray"
+            ctx.lineTo(w/2-w0, 0)
+            if(w0 < w/2){
+                ctx.lineTo(w/2-w0, (2 * w0 * h) / w)
+                ctx.lineTo(0, h)
+            } else {
+                ctx.lineTo(w/2-w0, 2* h - ((2 * w0 * h) / w))
+            }
+            if(2*t % 2 < 1) {ctx.fillStyle = "black"} else ctx.fillStyle = "gray"
+            
             ctx.fill()
+
+            ctx.beginPath()
+            ctx.moveTo(w/2, 0)
+            ctx.lineTo(w/2-w0, 0)
+            if(w0 > w/2){
+                ctx.lineTo(w/2-w0, 2* h - ((2 * w0 * h) / w))
+                ctx.lineTo(0, h)
+            } else {
+                ctx.lineTo(w/2-w0, ((2 * w0 * h) / w))
+            }
+            if(2*t % 2 > 1) {ctx.fillStyle = "black"} else ctx.fillStyle = "gray"
+            ctx.fill()
+
 
             const cosb = Math.cos(b)
             const sinb = Math.sin(b)
@@ -40,7 +62,6 @@
             const l0 = (sinb*w)/(2*cosb)
 
             const offsets = []
-            const num = 4
             for(let n = 0; n<num;n++) offsets.push(n/num)
 
             offsets.forEach(t0 => {
@@ -58,7 +79,7 @@
                 ctx.transform(cosb, -sinb, sinb, cosb, 0, l)
 
                 ctx.beginPath()
-                ctx.roundRect(-x1-m, -th, x1+x2+2*m, 2*th, 5)
+                ctx.roundRect(-x1-e, -th, x1+x2+2*e, 2*th, 5)
                 ctx.fillStyle = "lightgray"
                 ctx.fill()
             })
@@ -68,9 +89,6 @@
             requestAnimationFrame(gameLoop);
             t+=0.005
             
-            x += 1*cosa
-            y += 1*sina
-            a += 0.01
         }
 
     </script>
