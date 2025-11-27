@@ -1,3 +1,6 @@
+const directions = ['w', 'n', 'e', 's'];
+const borderKeys = ['nx', 'ny', 'ex', 'ey', 'sx', 'sy', 'wx', 'wy'];
+
 function startGame() {
     resize()
     populateNodes(nodes)
@@ -27,7 +30,7 @@ let smoothed = 16.67; // start near 60fps
 var bgrMap = []
 var nodes = []
 
-var nodeGap
+var nodeGap 
 var scrollPos = 0 // how much scrolled
 var drillLast = 0
 var drillBitT = 0.2
@@ -249,7 +252,7 @@ function drawMap(map){ //draws all visible tiles on given map
 
         if(!("color" in tile)) return; // if not given a color, ignore.
 
-        const points = tile.realized
+      const points = tile.realized.map(c => c * nodeGap);
         bgrctx.beginPath();
         bgrctx.moveTo(points[0], points[1] - scrollPos);
 
@@ -385,18 +388,18 @@ function drawDrillPart(colors, {type, w, h, r, x=0, y=0, color}){
             drlctx.beginPath();
             drlctx.fillStyle = colors[color] 
             drlctx.roundRect(
-                (x + (-w/2)) * nodeGap, 
-                (y + (-h/2))* nodeGap, 
-                w * nodeGap, 
-                h * nodeGap, 
-                r * nodeGap
+                (x + (-w/2)), 
+                (y + (-h/2)), 
+                w, 
+                h, 
+                r
             )
             drlctx.fill()
             break;
         case "circle" :
             drlctx.beginPath();
             drlctx.fillStyle = colors[color]
-            drlctx.arc(x * nodeGap, y * nodeGap, r * nodeGap, 0, 2 * Math.PI) 
+            drlctx.arc(x, y, r, 0, 2 * Math.PI) 
             drlctx.fill()
         break;
     }
@@ -406,7 +409,7 @@ function drawNode(tile){ // debug
     bgrctx.strokeStyle = "black"
     bgrctx.lineWidth = 1
     bgrctx.beginPath();
-    bgrctx.arc(tile.i * nodeGap, tile.j * nodeGap - scrollPos, (tile.color+2)*nodeGap/16, 0, 6.2832);
+    bgrctx.arc(tile.i, tile.j- scrollPos, (tile.color+2)/16, 0, 6.2832);
     bgrctx.stroke();
 }
 
@@ -541,16 +544,7 @@ function getAreaPts(map, i, j){
     const sw_wDiag = !wSameColor && !(swTileColor === wTileColor && swTilePalette === wTilePalette) && swTileColor >= tc && wTileColor >= tc && sTileColor >= tc
     const w_nwDiag = !nwSameColor && !(wTileColor === nwTileColor && wTilePalette === nwTilePalette) && wTileColor >= tc && nwTileColor >= tc && nTileColor >= tc
 
-    const sb = {
-        "nx" : (node.i + nb.nx) * nodeGap,
-        "ny" : (node.j + nb.ny) * nodeGap,
-        "ex" : (node.i + nb.ex) * nodeGap,
-        "ey" : (node.j + nb.ey) * nodeGap,
-        "sx" : (node.i + nb.sx) * nodeGap,
-        "sy" : (node.j + nb.sy) * nodeGap,
-        "wx" : (node.i + nb.wx) * nodeGap,
-        "wy" : (node.j + nb.wy) * nodeGap,
-    };
+    const sb = Object.fromEntries(borderKeys.map(key => [key, (node[key.endsWith('x') ? 'i' : 'j'] + nb[key])]));
 
     // how many adjacent nodes have the same color
     const adjCount = Object.keys(adjTiles).filter(key => adjTiles[key].color === tc && adjTiles[key].palette === tp).length
@@ -558,17 +552,8 @@ function getAreaPts(map, i, j){
     // checks for trivial case, where surrounded by like colors. just a shortcut to save time. 
     // can't check for trivial case where 0 adjacent like colors, creates errors.
     if(adjCount === 8){
-        points.push(
-            (nNode.i + nNode.border.wx) * nodeGap, (nNode.j + nNode.border.wy) * nodeGap,
-            (nNode.i + nNode.border.ex) * nodeGap, (nNode.j + nNode.border.ey) * nodeGap,
-            (eNode.i + eNode.border.nx) * nodeGap, (eNode.j + eNode.border.ny) * nodeGap,
-            (eNode.i + eNode.border.sx) * nodeGap, (eNode.j + eNode.border.sy) * nodeGap,
-            (sNode.i + sNode.border.ex) * nodeGap, (sNode.j + sNode.border.ey) * nodeGap,
-            (sNode.i + sNode.border.wx) * nodeGap, (sNode.j + sNode.border.wy) * nodeGap,
-            (wNode.i + wNode.border.sx) * nodeGap, (wNode.j + wNode.border.sy) * nodeGap,
-            (wNode.i + wNode.border.nx) * nodeGap, (wNode.j + wNode.border.ny) * nodeGap
-        );
-        return points;
+        return directions.map((d) => [nNode.i + nNode.border[d + "x"],
+                                      nNode.j + nNode.border[d + "y"]]).flat();
     }
 
     /* 
@@ -580,7 +565,7 @@ function getAreaPts(map, i, j){
     those as well. good luck to you!
 
     consider this line:
-    points.push((nwNode.i + b.ex) * nodeGap, (nwNode.j + b.ey) * nodeGap);
+    points.push((nwNode.i + b.ex), (nwNode.j + b.ey));
     this adds the nw adj eastern border to the points list.
     */
 
@@ -590,21 +575,21 @@ function getAreaPts(map, i, j){
             const b = nwNode.border;
             // this if statement is here because ne adj shares a border with w adj, so they would both 
             // add this point. if w adj is adding it, then nw adj won't.
-            if (!wSameColor) points.push((nwNode.i + b.sx) * nodeGap, (nwNode.j + b.sy) * nodeGap);
+            if (!wSameColor) points.push((nwNode.i + b.sx), (nwNode.j + b.sy));
             // but this one goes to just nw adj and NOT n adj, with which it shares the border.
-            points.push((nwNode.i + b.ex) * nodeGap, (nwNode.j + b.ey) * nodeGap);
+            points.push((nwNode.i + b.ex), (nwNode.j + b.ey));
         } else if (nw_nDiag) { // if need to fill blank space...
             const b = nwNode.border;
             // will add the point anyways.
-            points.push((nwNode.i + b.ex) * nodeGap, (nwNode.j + b.ey) * nodeGap);
+            points.push((nwNode.i + b.ex), (nwNode.j + b.ey));
         }
     }
 
     if (nSameColor) { // if target node same color as n adjacent node
         const b = nNode.border;
         // same thing as before. doesn't add duplicate point if nw adj would add it.
-        if (!nwSameColor) points.push((nNode.i + b.wx) * nodeGap, (nNode.j + b.wy) * nodeGap);
-        points.push((nNode.i + b.ex) * nodeGap, (nNode.j + b.ey) * nodeGap);
+        if (!nwSameColor) points.push((nNode.i + b.wx), (nNode.j + b.wy));
+        points.push((nNode.i + b.ex), (nNode.j + b.ey));
     } else {
         // northern border only added if n adj is different color, regardless of nw adj and ne adj
         points.push(sb.nx, sb.ny);
@@ -612,76 +597,76 @@ function getAreaPts(map, i, j){
         if (n_neDiag && !(eTileColor > tc && eTileColor === nTileColor && eTilePalette === nTilePalette)) {
             const b = nNode.border;
             // fill blank space.
-            points.push((nNode.i + b.ex) * nodeGap, (nNode.j + b.ey) * nodeGap);
+            points.push((nNode.i + b.ex), (nNode.j + b.ey));
         }
     }
 
     if(!(eTileColor > tc && eTileColor === nTileColor && eTilePalette === nTilePalette)){
         if (neSameColor) {
             const b = neNode.border;
-            if (!nSameColor) points.push((neNode.i + b.wx) * nodeGap, (neNode.j + b.wy) * nodeGap);
-            points.push((neNode.i + b.sx) * nodeGap, (neNode.j + b.sy) * nodeGap);
+            if (!nSameColor) points.push((neNode.i + b.wx), (neNode.j + b.wy));
+            points.push((neNode.i + b.sx), (neNode.j + b.sy));
         } else if (ne_eDiag) {
             const b = neNode.border;
-            points.push((neNode.i + b.sx) * nodeGap, (neNode.j + b.sy) * nodeGap);
+            points.push((neNode.i + b.sx), (neNode.j + b.sy));
         }
     }
 
     if (eSameColor) {
         const b = eNode.border;
-        if (!neSameColor) points.push((eNode.i + b.nx) * nodeGap, (eNode.j + b.ny) * nodeGap);
-        points.push((eNode.i + b.sx) * nodeGap, (eNode.j + b.sy) * nodeGap);
+        if (!neSameColor) points.push((eNode.i + b.nx), (eNode.j + b.ny));
+        points.push((eNode.i + b.sx), (eNode.j + b.sy));
     } else {
         points.push(sb.ex, sb.ey);
         if (e_seDiag && !(sTileColor > tc && sTileColor === eTileColor && sTilePalette === eTilePalette)) {
             const b = eNode.border;
-            points.push((eNode.i + b.sx) * nodeGap, (eNode.j + b.sy) * nodeGap);
+            points.push((eNode.i + b.sx), (eNode.j + b.sy));
         }
     }
 
     if(!(sTileColor > tc && sTileColor === eTileColor && sTilePalette === eTilePalette)) {
         if (seSameColor) {
             const b = seNode.border;
-            if (!eSameColor) points.push((seNode.i + b.nx) * nodeGap, (seNode.j + b.ny) * nodeGap);
-            points.push((seNode.i + b.wx) * nodeGap, (seNode.j + b.wy) * nodeGap);
+            if (!eSameColor) points.push((seNode.i + b.nx), (seNode.j + b.ny));
+            points.push((seNode.i + b.wx), (seNode.j + b.wy));
         } else if (se_sDiag) {
             const b = seNode.border;
-            points.push((seNode.i + b.wx) * nodeGap, (seNode.j + b.wy) * nodeGap);
+            points.push((seNode.i + b.wx), (seNode.j + b.wy));
         }
     }
 
     if (sSameColor) {
         const b = sNode.border;
-        if (!seSameColor) points.push((sNode.i + b.ex) * nodeGap, (sNode.j + b.ey) * nodeGap);
-        points.push((sNode.i + b.wx) * nodeGap, (sNode.j + b.wy) * nodeGap);
+        if (!seSameColor) points.push((sNode.i + b.ex), (sNode.j + b.ey));
+        points.push((sNode.i + b.wx), (sNode.j + b.wy));
     } else {
         points.push(sb.sx, sb.sy);
         if (s_swDiag && !(wTileColor > tc && wTileColor === sTileColor && wTilePalette === sTilePalette)) {
             const b = sNode.border;
-            points.push((sNode.i + b.wx) * nodeGap, (sNode.j + b.wy) * nodeGap);
+            points.push((sNode.i + b.wx), (sNode.j + b.wy));
         }
     }
 
     if(!(wTileColor > tc && wTileColor === sTileColor && wTilePalette === sTilePalette)) {
         if (swSameColor) {
             const b = swNode.border;
-            if (!sSameColor) points.push((swNode.i + b.ex) * nodeGap, (swNode.j + b.ey) * nodeGap);
-            points.push((swNode.i + b.nx) * nodeGap, (swNode.j + b.ny) * nodeGap);
+            if (!sSameColor) points.push((swNode.i + b.ex), (swNode.j + b.ey));
+            points.push((swNode.i + b.nx), (swNode.j + b.ny));
         } else if (sw_wDiag) {
             const b = swNode.border;
-            points.push((swNode.i + b.nx) * nodeGap, (swNode.j + b.ny) * nodeGap);
+            points.push((swNode.i + b.nx), (swNode.j + b.ny));
         }
     }
 
     if (wSameColor) {
         const b = wNode.border;
-        if (!swSameColor) points.push((wNode.i + b.sx) * nodeGap, (wNode.j + b.sy) * nodeGap);
-        points.push((wNode.i + b.nx) * nodeGap, (wNode.j + b.ny) * nodeGap);
+        if (!swSameColor) points.push((wNode.i + b.sx), (wNode.j + b.sy));
+        points.push((wNode.i + b.nx), (wNode.j + b.ny));
     } else {
         points.push(sb.wx, sb.wy);
         if (w_nwDiag && !(nTileColor > tc && nTileColor === wTileColor && nTilePalette === wTilePalette)) {
             const b = wNode.border;
-            points.push((wNode.i + b.nx) * nodeGap, (wNode.j + b.ny) * nodeGap);
+            points.push((wNode.i + b.nx), (wNode.j + b.ny));
         }
     }
 
@@ -780,7 +765,7 @@ function resize() { // resize window
         canv.width = canvWidth
         canv.height = canvHeight
     })
-    nodeGap = bgr.width / (mapSize - 1)
+  nodeGap = bgr.width / (mapSize - 1)
 }
 
 window.addEventListener('resize', () => {
