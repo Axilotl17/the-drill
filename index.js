@@ -1,6 +1,3 @@
-const directions = ['w', 'n', 'e', 's'];
-const borderKeys = ['nx', 'ny', 'ex', 'ey', 'sx', 'sy', 'wx', 'wy'];
-
 function startGame() {
     resize()
     populateNodes(nodes)
@@ -23,6 +20,9 @@ var canvHeight
 const mapSize = 60  // in nodes
 const landscapeHeight = layers.topsoil.startHeight
 const mapLength = 200 // in nodes
+
+const directions = ['w', 'n', 'e', 's'];
+const borderKeys = ['nx', 'ny', 'ex', 'ey', 'sx', 'sy', 'wx', 'wy'];
 
 let last = performance.now(); // for fps
 let smoothed = 16.67; // start near 60fps
@@ -394,6 +394,7 @@ function drawDrillPart(colors, {type, w, h, r, x=0, y=0, color}){
                 h, 
                 r
             )
+
             drlctx.fill()
             break;
         case "circle" :
@@ -414,7 +415,6 @@ function drawNode(tile){ // debug
 }
 
 function drawFPS(fps, ms) {
-
     const text = `${fps} FPS (${ms}ms)`
     const m = 10 // margin inner
     const M = 10 // margin outer
@@ -432,7 +432,6 @@ function drawFPS(fps, ms) {
     bgrctx.font = "15px sans-serif";
     bgrctx.fillStyle = "white";
     bgrctx.fillText(text, x + m, y - m + h);
-
 }
 
 function getAllClusters(map) { // UNUSED may use later so not deleting
@@ -746,9 +745,17 @@ function gameLoop(now) { // game animation loop
     smoothed = smoothed * 0.9 + delta * 0.1;
 
     drawMap(bgrMap)
-
     drawFPS(Math.round(1000/smoothed), Math.round(smoothed))
-    drawDrill(bgr.width / 2, nodeGap*20)
+    drawDrill(bgr.width / 2, nodeGap*20, 0.2)
+
+    for (let i = 0; i < animations.length;) {
+        const done = animations[i].draw(now);
+        if (done) {
+            animations.splice(i, 1);
+        } else {
+            i++
+        }
+    }
 
     requestAnimationFrame(gameLoop);
 }
