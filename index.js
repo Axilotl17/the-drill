@@ -1,8 +1,26 @@
+drill.html
+
+function startGame() {
+    resize()
+    populateNodes(nodes)
+    genBackground()
+
+    requestAnimationFrame(gameLoop);
+}
+
+const response = await fetch('./data.json');
+const { layers, drills } = await response.json();
+
 const bgr = document.getElementById("background")
 const bgrctx = bgr.getContext('2d');
+const drl = document.getElementById("drill")
+const drlctx = drl.getContext('2d');
+
+var canvWidth
+var canvHeight
 
 const mapSize = 60  // in nodes
-const landscapeHeight = 30
+const landscapeHeight = layers.topsoil.startHeight
 const mapLength = 200 // in nodes
 
 let last = performance.now(); // for fps
@@ -14,87 +32,15 @@ var nodes = []
 var nodeGap
 var scrollPos = 0 // how much scrolled
 
-const layers = {
-    'landscape' : {
-        'startHeight' : 0,
-        'background' : ["rgb(135, 206, 235)"],
-        'palettes' : {
-            'grass' : [
-                "rgb(115, 150, 85)",
-                "rgb(96, 133, 72)",
-                "rgb(78, 115, 60)",
-            ],
-            'walls' : [
-                "rgb(130, 130, 135)",
-                "rgb(110, 112, 118)",
-                "rgb(95, 98, 104)",
-            ],
-            'main' : [
-                "rgb(132, 100, 72)",
-                "rgb(104, 77, 54)",
-                "rgb(120, 97, 70)",
-                ["rgb(122, 90, 58)"]
-            ]
-        }
-    },
-    'topsoil' : {
-        'startHeight' : landscapeHeight,
-        'ores' : {
-            // 'ore' : 'frequency' perhaps?
-        },
-        'background' : ["rgb(122, 90, 58)"],
-        'palettes' : {
-            'walls' : [
-                "rgb(130, 130, 135)",
-                "rgb(110, 112, 118)",
-                "rgb(95, 98, 104)",
-            ],
-            'main' : [
-                "rgb(132, 100, 72)",
-                "rgb(104, 77, 54)",
-                "rgb(120, 97, 70)",
-            ]
-        }
-    },
-    'nextlayer' : {
-        'startHeight' : 100,
-        'ores' : {
-            // 'ore' : 'frequency' perhaps?
-        },
-        'background' : "rgb(90, 90, 92)",
-        'palettes' : {
-            'grass' : [
-                    "rgb(96, 133, 72)",
-                    "rgb(78, 115, 60)",
-                    "rgb(115, 150, 85)",
-            ],
-            'walls' : [
-                    "rgb(130, 130, 135)",
-                    "rgb(110, 112, 118)",
-                    "rgb(95, 98, 104)",
-            ],
-            'main' : [
-                    "rgb(130, 130, 135)",
-                    "rgb(110, 112, 118)",
-                    "rgb(95, 98, 104)",
-            ]
-        }
-    }
-}
-
-resize()
-populateNodes(nodes)
-genBackground()
-
-requestAnimationFrame(gameLoop);
+startGame();
 
 function populateNodes(map){ // generate the nodes on a map
     // in theory only should populate one map and make copies for other layers
-    for(j=0; j<mapLength; j++){
+    for(let j=0; j<mapLength; j++){
         const noise = 0.2
-        row = []
-        for(i=0; i<mapSize; i++) {
-            node = {
+        const row = []
+        for(let i=0; i<mapSize; i++) {
+            const node = {
                 "i" : i, // the column of the node, int
                 "j" : j, // the row of the node, int
                 "border" : {}
@@ -146,9 +92,9 @@ function populateNodes(map){ // generate the nodes on a map
 }
 
 function genBackground() { // places clusters on background
-    for(j=0; j<mapLength; j++){
-        row = []
-        for(i=0; i<mapSize; i++) {
+    for(let j=0; j<mapLength; j++){
+        const row = []
+        for(let i=0; i<mapSize; i++) {
             const tile = {
                 'layer' : getLayer(j),
                 'color' : -1
@@ -158,33 +104,33 @@ function genBackground() { // places clusters on background
         bgrMap.push(row)
     }
 
-    f = 25 // frequency. right now all cluster types are equally frequent.
+    const f = 25 // frequency. right now all cluster types are equally frequent.
     
     //starts at landscapeHeight to make room for landscape
-    for(n = landscapeHeight; n<mapLength; n += mapSize/f) { // the above can be changed by modifying a in n += a. 
+    for(let n = landscapeHeight; n<mapLength; n += mapSize/f) { // the above can be changed by modifying a in n += a. 
         genCluster(bgrMap, rand(0, mapSize), Math.round(n), 3, 1, 0)
     }
-    for(n = landscapeHeight; n<mapLength; n += mapSize/f) {
+    for(let n = landscapeHeight; n<mapLength; n += mapSize/f) {
         genCluster(bgrMap, rand(0, mapSize), Math.round(n), 1, 4, 1)
     }
-    for(n = landscapeHeight; n<mapLength; n += mapSize/f) {
+    for(let n = landscapeHeight; n<mapLength; n += mapSize/f) {
         genCluster(bgrMap, rand(0, mapSize), Math.round(n), 1, 1, 2)
     }
     // genCluster(bgrMap, mapSize/2, 30, 1, 1, 0) // debug
     
-    for(j = landscapeHeight - 3; j<mapLength; j++) {
-        tilePos = [0, 1, mapSize-2, mapSize-1]
+    for(let j = landscapeHeight - 3; j<mapLength; j++) {
+        const tilePos = [0, 1, mapSize-2, mapSize-1]
         if(Math.random() > 0.5) tilePos.push(2)
         if(Math.random() > 0.5) tilePos.push(mapSize-3)
 
         tilePos.forEach(i => {
             const r = Math.random()
-
+            let color
             if (r < 0.6) {color = 0
             } else if (r < 0.9){color = 1
             } else color = 2
 
-            tile = bgrMap[j][i]
+            const tile = bgrMap[j][i]
 
             tile.palette = "walls"
             tile["color"] = color
@@ -207,9 +153,8 @@ function genBackground() { // places clusters on background
  * @param {number} noise - range of variation in nodes
  * @param {number} color 
  */
-
 function genCluster(map, si, sj, r, noise, color) { // generates a cluster on a given map
-    d = r + Math.floor(noise/2) // ensures checks every point noise could generate
+    let d = r + Math.floor(noise/2) // ensures checks every point noise could generate
     for (let j = sj - d; j <= sj + d; j++) {
         for (let i = si - d; i <= si + d; i++) {
             // skip if outside map
@@ -237,20 +182,20 @@ function genGrass(map) {
     const middleMargin = 7
 
     let d = 0
-    for(i = center; i<mapSize; i++) {
+    for(let i = center; i<mapSize; i++) {
         if(i > center + middleMargin){
             if(d>=0 && Math.random() < layerVariance) d--
             if(d<=0 && Math.random() < layerVariance) d++
         }
         map[landscapeHeight - 3 + d][i].palette = "grass"
         map[landscapeHeight - 3 + d][i]["color"] = 0
-        for(j = landscapeHeight-10; j<landscapeHeight - 3 + d; j++) {
+        for(let j = landscapeHeight-10; j<landscapeHeight - 3 + d; j++) {
             if(map[j][i].palette === "main" || map[j][i].palette === "walls") {
                 delete map[j][i].palette
                 map[j][i].color = -1
             }
         }
-        for(j = landscapeHeight - 2 + d; j<landscapeHeight; j++) {
+        for(let j = landscapeHeight - 2 + d; j<landscapeHeight; j++) {
             const r = Math.random()/(j - landscapeHeight + 3 - d)
             const tile = map[j][i]
             if(r>0.6) {
@@ -267,21 +212,20 @@ function genGrass(map) {
     }
 
     d = 0
-    for(i = center; i>=0; i--) {
-        console.log(i)
+    for(let i = center; i>=0; i--) {
         if(i < center - middleMargin){
             if(d>=0 && Math.random() < layerVariance) d--
             if(d<=0 && Math.random() < layerVariance) d++
         }
         map[landscapeHeight - 3 + d][i].palette = "grass"
         map[landscapeHeight - 3 + d][i]["color"] = 0
-        for(j = landscapeHeight-10; j<landscapeHeight - 3 + d; j++) {
+        for(let j = landscapeHeight-10; j<landscapeHeight - 3 + d; j++) {
             if(map[j][i].palette === "main" || map[j][i].palette === "walls") {
                 delete map[j][i].palette
                 map[j][i].color = -1
             }
         }
-        for(j = landscapeHeight - 2 + d; j<landscapeHeight; j++) {
+        for(let j = landscapeHeight - 2 + d; j<landscapeHeight; j++) {
             const r = Math.random()/(j - landscapeHeight + 3 - d)
             const tile = map[j][i]
             if(r>0.6) {
@@ -299,6 +243,7 @@ function genGrass(map) {
 }
 
 function drawMap(map){ //draws all visible tiles on given map
+    bgrctx.clearRect(0, 0, bgr.width, bgr.height);
     runForVisible((i, j) => {
         let tile = map[j][i]
 
@@ -336,6 +281,47 @@ function drawMap(map){ //draws all visible tiles on given map
     // })
 }
 
+function drawDrill(x, y, vDrill = 0, vScroll = 1) {
+    drlctx.clearRect(0, 0, drl.width, drl.height);
+
+    const h = Math.sqrt(vScroll*vScroll + vDrill*vDrill)
+    const c = vScroll / h
+    const s = - vDrill / h
+
+    drlctx.setTransform(c, s, -s, c, x, y)
+
+    const currentDrill = "basic"
+    
+    const drill = drills[currentDrill]
+
+    drill.parts.forEach(part => drawDrillPart(drill.colors, part))
+
+    drlctx.setTransform(1, 0, 0, 1, 0, 0);
+}
+
+function drawDrillPart(colors, {type, w, h, r, x=0, y=0, color}){ 
+    switch(type) {
+        case "rrect" :
+            drlctx.beginPath();
+            drlctx.fillStyle = colors[color] 
+            drlctx.roundRect(
+                (x + (-w/2)) * nodeGap, 
+                (y + (-h/2))* nodeGap, 
+                w * nodeGap, 
+                h * nodeGap, 
+                r * nodeGap
+            )
+            drlctx.fill()
+            break;
+        case "circle" :
+            drlctx.beginPath();
+            drlctx.fillStyle = colors[color]
+            drlctx.arc(x * nodeGap, y * nodeGap, r * nodeGap, 0, 2 * Math.PI) 
+            drlctx.fill()
+        break;
+    }
+}
+
 function drawNode(tile){ // debug
     bgrctx.strokeStyle = "black"
     bgrctx.lineWidth = 1
@@ -357,8 +343,7 @@ function drawFPS(fps, ms) {
 
     bgrctx.fillStyle = "black"
     bgrctx.beginPath();
-    bgrctx.roundRect(x, y, w, h, 5
-    )
+    bgrctx.roundRect(x, y, w, h, 5)
     bgrctx.fill()
 
     bgrctx.font = "15px sans-serif";
@@ -508,8 +493,7 @@ function getAreaPts(map, i, j){
 
     /* 
     the following code is an amalgamation of ifs and elses that somehow formulates
-    coherent code. it is not unde    // if no fucky overlap between n and w
-rstandable, it barely works, and it is slow.  
+    coherent code. it is not understandable, it barely works, and it is slow.  
 
     i have attempted to comment the first of the two cases, considering the ne and n adjacent nodes.
     the others follow a pattern from those two, so it should in theory be possible to figure out 
@@ -517,7 +501,7 @@ rstandable, it barely works, and it is slow.
 
     consider this line:
     points.push((nwNode.i + b.ex) * nodeGap, (nwNode.j + b.ey) * nodeGap);
-    this adds the nw adj eastern border to the points list, 
+    this adds the nw adj eastern border to the points list.
     */
 
     // if no fucky overlap between n adj and w adj
@@ -625,7 +609,7 @@ rstandable, it barely works, and it is slow.
 }
 
 function getAdjNodes(map, i, j) { // returns list of adjacent nodes
-    adjNodes = { // list of directions`
+    const adjNodes = { // list of directions`
         "nw" : map[j - 1]?.[i - 1],
         "n"  : map[j - 1]?.[i],
         "ne" : map[j - 1]?.[i + 1],
@@ -669,8 +653,8 @@ function runForAll(func, io = 0, jo = 0) { // run for all i, j
 }
 
 function runForVisible(func) { // run for all i, j nodes on screen
-    topNode = Math.max(Math.floor(scrollPos/nodeGap), 0)
-    botNode = Math.min(Math.ceil((scrollPos + bgr.height)/nodeGap) + 1, mapLength) 
+    const topNode = Math.max(Math.floor(scrollPos/nodeGap), 0)
+    const botNode = Math.min(Math.ceil((scrollPos + bgr.height)/nodeGap) + 1, mapLength) 
 
     for (let j = topNode; j < botNode; j++) {
         for (let i = 0; i < mapSize; i++) {
@@ -696,23 +680,26 @@ function gameLoop(now) { // game animation loop
     last = now;
     smoothed = smoothed * 0.9 + delta * 0.1;
 
-    bgrctx.clearRect(0, 0, bgr.width, bgr.height);
-
     drawMap(bgrMap)
 
     drawFPS(Math.round(1000/smoothed), Math.round(smoothed))
+    drawDrill(bgr.width / 2, nodeGap*20)
+
     requestAnimationFrame(gameLoop);
 }
 
 function resize() { // resize window
     const dpr = window.devicePixelRatio || 1; // idk what this does 
 
-    bgr.style.width = window.innerWidth + "px";
-    bgr.style.height = window.innerHeight + "px";
+    canvWidth = window.innerWidth * dpr
+    canvHeight = window.innerHeight * dpr;
 
-    bgr.width = window.innerWidth * dpr;
-    bgr.height = window.innerHeight * dpr;
-
+    [bgr, drl].forEach(canv => {
+        canv.style.width = window.innerWidth + "px";
+        canv.style.height = window.innerHeight + "px";
+        canv.width = canvWidth
+        canv.height = canvHeight
+    })
     nodeGap = bgr.width / (mapSize - 1)
 }
 
@@ -723,7 +710,7 @@ window.addEventListener('resize', () => {
     })
 });
 addEventListener("wheel", (e) => {
-    s = 5
+    const s = 5
     if(scrollPos + e.deltaY/s <= 0){
         scrollPos = 0
     } else {
@@ -731,3 +718,16 @@ addEventListener("wheel", (e) => {
     }
 })
 
+function debugExpose(obj) {
+  for (const [key, value] of Object.entries(obj)) {
+    window[key] = value;
+  }
+}
+
+debugExpose({
+    nodes,
+    bgr,
+    bgrMap,
+    bgrctx,
+    drlctx,
+})

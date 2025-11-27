@@ -1,0 +1,112 @@
+{
+    "layers" : {
+        "landscape" : {
+            "startHeight" : 0,
+            "background" : ["rgb(135, 206, 235)"],
+            "palettes" : {
+                "grass" : [
+                    "rgb(115, 150, 85)",
+                    "rgb(96, 133, 72)",
+                    "rgb(78, 115, 60)"
+                ],
+                "walls" : [
+                    "rgb(130, 130, 135)",
+                    "rgb(110, 112, 118)",
+                    "rgb(95, 98, 104)"
+                ],
+                "main" : [
+                    "rgb(132, 100, 72)",
+                    "rgb(104, 77, 54)",
+                    "rgb(120, 97, 70)",
+                    "rgb(122, 90, 58)"
+                ]
+            }
+        },
+        "topsoil" : {
+            "startHeight" : 25,
+            "ores" : {
+            },
+            "background" : "rgb(122, 90, 58)",
+            "palettes" : {
+                "walls" : [
+                    "rgb(130, 130, 135)",
+                    "rgb(110, 112, 118)",
+                    "rgb(95, 98, 104)"
+                ],
+                "main" : [
+                    "rgb(132, 100, 72)",
+                    "rgb(104, 77, 54)",
+                    "rgb(120, 97, 70)"
+                ]
+            }
+        },
+        "nextlayer" : {
+            "startHeight" : 100,
+            "ores" : {
+            },
+            "background" : "rgb(90, 90, 92)",
+            "palettes" : {
+                "grass" : [
+                        "rgb(96, 133, 72)",
+                        "rgb(78, 115, 60)",
+                        "rgb(115, 150, 85)"
+                ],
+                "walls" : [
+                        "rgb(130, 130, 135)",
+                        "rgb(110, 112, 118)",
+                        "rgb(95, 98, 104)"
+                ],
+                "main" : [
+                        "rgb(130, 130, 135)",
+                        "rgb(110, 112, 118)",
+                        "rgb(95, 98, 104)"
+                ]
+            }
+        }
+    },
+    "drills" : {
+        "basic" : {
+            "parts" : [
+                {
+                    "type" : "rrect",
+                    "y" : -2.3,
+                    "w" : 1.7,
+                    "h" : 0.5,
+                    "r" : 0.5,
+                    "color" : "dark" 
+                },
+                {
+                    "type" : "rrect",
+                    "x" : 0.75,
+                    "y" : -2.05,
+                    "w" : 0.5,
+                    "h" : 1,
+                    "r" : 0.5,
+                    "color" : "dark" 
+                },
+                {
+                    "type" : "rrect",
+                    "w" : 2.5,
+                    "h" : 3.5,
+                    "r" : 0.5,
+                    "color" : "body" 
+                },
+                {
+                    "type" : "circle",
+                    "r" : 0.9,
+                    "color" : "dark" 
+                },
+                {
+                    "type" : "circle",
+                    "r" : 0.6,
+                    "color" : "window" 
+                }
+            ],
+            "colors" : {
+                "body" : "rgb(255, 184, 55)",
+                "dark" : "rgb(92, 114, 112)",
+                "window" : "rgb(115, 204, 240)"
+            }
+        }
+    }
+}

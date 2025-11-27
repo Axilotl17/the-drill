@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+    <canvas width = 400, height=400 style="width:400; height:400" id="drill"></canvas>
+    <script>
+        const canvas = document.getElementById("drill")
+        const ctx = canvas.getContext('2d');
+
+        let t=0 
+        
+        let x = 200
+        let y = 100
+        let a = 0
+
+        requestAnimationFrame(gameLoop);
+
+        function gameLoop(now) {
+            const cosa = Math.cos(a)
+            const sina = Math.sin(a)
+
+            ctx.clearRect(0,0,canvas.width, canvas.height);
+            ctx.setTransform(cosa, -sina, sina, cosa, x, y)
+
+            const h = 100
+            const w = 100
+            const th = 7 // thickness
+            const m = 5
+            const b = 1 * Math.PI/7
+
+
+            ctx.beginPath()
+            ctx.moveTo(-w/2, 0)
+            ctx.lineTo(w/2, 0)
+            ctx.lineTo(0, h)
+            ctx.fillStyle = "gray"
+            ctx.fill()
+
+            const cosb = Math.cos(b)
+            const sinb = Math.sin(b)
+            
+            const l0 = (sinb*w)/(2*cosb)
+
+            const offsets = []
+            const num = 4
+            for(let n = 0; n<num;n++) offsets.push(n/num)
+
+            offsets.forEach(t0 => {
+                console.log
+                const l = h-((t + t0)% 1)*(h+l0)
+                if(l > l0) {
+                    x1 = (h-l)/((2*h/w)*cosb + sinb)
+                    x2 = (h-l)/((2*h/w)*cosb - sinb)
+                } else {
+                    x1 = (h-l)/((2*h/w)*cosb + sinb)
+                    x2 = l/sinb
+                }
+
+                ctx.setTransform(cosa, -sina, sina, cosa, x, y)
+                ctx.transform(cosb, -sinb, sinb, cosb, 0, l)
+
+                ctx.beginPath()
+                ctx.roundRect(-x1-m, -th, x1+x2+2*m, 2*th, 5)
+                ctx.fillStyle = "lightgray"
+                ctx.fill()
+            })
+
+            ctx.setTransform(1, 0, 0, 1, 0, 0)
+
+            requestAnimationFrame(gameLoop);
+            t+=0.005
+            
+            x += 1*cosa
+            y += 1*sina
+            a += 0.01
+        }
+
+    </script>
+</html>
