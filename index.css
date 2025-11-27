@@ -1,6 +1,13 @@
 *{
+    position: fixed;
     margin: 0;
     padding: 0;
     overflow: hidden; /* it's back! */
+}
 
+#background {
+    z-index: 1;
+}
+#drill {
+    z-index: 2;
 }
