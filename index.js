@@ -1,6 +1,14 @@
-const directions = ['n', 'e', 's', 'w'];
-const borderKeys = ['nx', 'ny', 'ex', 'ey', 'sx', 'sy', 'wx', 'wy'];
-
+const directions = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
+const dirCoords = {
+    "nw" : [-1, -1],
+    "n" : [0, -1],
+    "ne" : [1, -1],
+    "e": [1, 0],
+    "se": [1, 1],
+    "s": [0, 1],
+    "sw": [-1, 1],
+    "w": [-1, 0]
+}
 
 function startGame() {
     resize()
@@ -29,6 +37,7 @@ const mapLength = 200 // in nodes
 let last = performance.now(); // for fps
 let smoothed = 16.67; // start near 60fps
 
+const spaces = []
 const tiles = []
 const nodes = []
 
@@ -114,7 +123,10 @@ function genBackground() { // places clusters on background
             const tile = {
                 'node' : nodes[j][i],
                 'layer' : getLayer(j),
-                'color' : -1
+                'color' : -1,
+                'i' : i,
+                'j' : j,
+                'spaces' : []
             }
             row.push(tile)
         }
@@ -443,14 +455,36 @@ function drawFPS(fps, ms) {
     bgrctx.fillText(text, x + m, y - m + h);
 }
 
-function updatePos() {
-
+function genSpaces() {
+    for(let i = 0; i < mapSize - 1; i++) {
+        for(let j = 0; j < mapLength - 1; j++) {
+            const space = {
+                'i' : i,
+                'j' : j,
+                'tiles' : {
+                    'nw' : tiles[j][i],
+                    'ne' : tiles[j][i+1],
+                    'se' : tiles[j+1][i+1],
+                    'sw' : tiles[j-1][i+1],
+                }
+            }
+            space.paths = getSpacePaths(space)
+        }
+    }
 }
 
 function getTilePath(tile) {
     node = tile.node
-    b = node.border
-    return Object.keys(b).map([b.i + node.i, b.j + node.j])
+    return Object.values(node.border).map(d => [d.i + node.i, d.j + node.j])
+}
+
+function getSpacePaths(space) {
+    const colors = {}
+    space.tiles.forEach(tile => {
+        const key = colors[tile.palette + tile.color]
+        if(key in colors) {colors[key]++ } else {
+            colors[key] = 0}
+    })
 }
 
 function getAllClusters(map) { // UNUSED may use later so not deleting
@@ -555,6 +589,11 @@ function rand(min, max) { // rand between min/max
     return Math.floor(Math.random()*(max - min + 1)) + min
 }
 
+function mod(a, n) {
+    return ((a % n) + n) % n;
+}
+
+
 function gameLoop(now) { // game animation loop
     const delta = now - last;
     last = now;
@@ -615,4 +654,6 @@ debugExpose({
     tiles,
     bgrctx,
     drlctx,
+    updateSpaces,
+    getAdjNodes,
 })
