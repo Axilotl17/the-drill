@@ -15,6 +15,8 @@ function startGame() {
     populateNodes(nodes)
     console.log(nodes)
     genBackground()
+    updateSections()
+    console.log(sections[1])
 
     requestAnimationFrame(gameLoop);
 }
@@ -37,7 +39,7 @@ const mapLength = 200 // in nodes
 let last = performance.now(); // for fps
 let smoothed = 16.67; // start near 60fps
 
-const spaces = []
+const sections = Array.from({ length: mapLength }, () => new Set());
 const tiles = []
 const nodes = []
 
@@ -126,9 +128,13 @@ function genBackground() { // places clusters on background
                 'color' : -1,
                 'i' : i,
                 'j' : j,
-                'spaces' : []
+                'spaces' : [],
             }
             row.push(tile)
+
+            const section = {}
+            sections[j].add(section)
+            tile.section = section
         }
         tiles.push(row)
     }
@@ -168,6 +174,43 @@ function genBackground() { // places clusters on background
 
     genGrass(tiles);
 } 
+
+function genSpaces() {
+    for(let i = 0; i < mapSize - 1; i++) {
+        for(let j = 0; j < mapLength - 1; j++) {
+            const space = {
+                'i' : i,
+                'j' : j,
+                'tiles' : {
+                    'nw' : tiles[j][i],
+                    'ne' : tiles[j][i+1],
+                    'se' : tiles[j+1][i+1],
+                    'sw' : tiles[j+1][i],
+                }
+            }
+
+
+            const nwb = space.tiles.nw.node.border
+            const seb = space.tiles.se.node.border
+
+            space.border = {
+                'n' : nwb.e,
+                'e' : seb.n,
+                's' : seb.w,
+                'w' : nwb.s
+            }
+
+            space.sections = getSpaceSections(space)
+
+            //sections[j].add(...space.sections)
+
+            tiles[j][i].spaces.se = space
+            tiles[j][i+1].spaces.sw = space
+            tiles[j+1][i+1].spaces.nw = space
+            tiles[j+1][i].spaces.ne = space
+        }
+    }
+}
 
 /**
  * 
@@ -269,37 +312,35 @@ function genGrass(map) {
 
 function drawMap(map){ //draws all visible tiles on given map
     bgrctx.clearRect(0, 0, bgr.width, bgr.height);
-    runForVisible((i, j) => {
-        let tile = map[j][i]
 
-        if(!("color" in tile)) return; // if not given a color, ignore.
+    const topNode = Math.max(Math.floor(scrollPos/nodeGap), 0)
+    const botNode = Math.min(Math.ceil((scrollPos + bgr.height)/nodeGap) + 1, mapLength) 
 
-      const points = tile.realized.map(c => c * nodeGap);
-        bgrctx.beginPath();
-        bgrctx.moveTo(points[0], points[1] - scrollPos);
+    for (let j = topNode; j < botNode; j++) {
+        const row = sections[j]
 
-        for (let i = 2; i < points.length; i += 2) {
-            const x = points[i];
-            const y = points[i + 1] - scrollPos;
-            bgrctx.lineTo(x, y);
-        }
+        row.forEach(section => {
+            //console.log(section)
+            const path = section.path
 
-        bgrctx.closePath();
-        let color
+            bgrctx.beginPath();
+            bgrctx.moveTo(path[0][0] * nodeGap, path[0][1] * nodeGap - scrollPos);
 
-        if(tile.color < 0) {
-            color = layers[tile.layer].background
-        } else {
-            color = layers[tile.layer].palettes[tile.palette][tile.color];
-        }
+            for (let i = 1; i < path.length; i += 1) {
+                const x = path[i][0] * nodeGap;
+                const y = path[i][1] * nodeGap - scrollPos;
+                bgrctx.lineTo(x, y);
+            }
 
-        bgrctx.fillStyle = color;
-        bgrctx.strokeStyle = color;
-        bgrctx.lineCap = "round"
-        bgrctx.lineWidth = 1
-        bgrctx.fill();
-        bgrctx.stroke();
-    })
+            bgrctx.fillStyle = section.color;
+            bgrctx.strokeStyle = section.color;
+            bgrctx.lineCap = "round"
+            bgrctx.lineWidth = 1
+            bgrctx.fill();
+            bgrctx.closePath();
+            bgrctx.stroke();
+        })
+    }
 
     // runForAll((i, j) => { // debug
     //     drawNode(map[j][i]);
@@ -455,36 +496,34 @@ function drawFPS(fps, ms) {
     bgrctx.fillText(text, x + m, y - m + h);
 }
 
-function genSpaces() {
-    for(let i = 0; i < mapSize - 1; i++) {
-        for(let j = 0; j < mapLength - 1; j++) {
-            const space = {
-                'i' : i,
-                'j' : j,
-                'tiles' : {
-                    'nw' : tiles[j][i],
-                    'ne' : tiles[j][i+1],
-                    'se' : tiles[j+1][i+1],
-                    'sw' : tiles[j-1][i+1],
-                }
-            }
-            space.paths = getSpacePaths(space)
-        }
+function updateSections() {
+    runForAll((i, j) => {
+        const tile = tiles[j][i];
+        Object.assign(tile.section, getTileSection(tile))
+    });
+}
+
+function getTileSection(tile) {
+    const node = tile.node
+    const path = Object.values(node.border).map(d => [d.i + node.i, d.j + node.j])
+    const color = tile.color < 0 ? layers[tile.layer].background : 
+        layers[tile.layer].palettes[tile.palette][tile.color]
+    return {
+        'color' : color,
+        'path' : path
     }
 }
 
-function getTilePath(tile) {
-    node = tile.node
-    return Object.values(node.border).map(d => [d.i + node.i, d.j + node.j])
-}
+function getSpaceSections(space) {
+    const highestColors = getHighestColors(space.tiles)
 
-function getSpacePaths(space) {
-    const colors = {}
-    space.tiles.forEach(tile => {
-        const key = colors[tile.palette + tile.color]
-        if(key in colors) {colors[key]++ } else {
-            colors[key] = 0}
-    })
+    switch(highestColors.length) {
+        case 1: 
+        const tile = Object.highestColors.values[0]
+        return {
+            'palette' : 3
+        }
+    }
 }
 
 function getAllClusters(map) { // UNUSED may use later so not deleting
@@ -593,13 +632,25 @@ function mod(a, n) {
     return ((a % n) + n) % n;
 }
 
+function getHighestColors(obj) {
+    const maxValue = Math.max(...Object.values(obj).map(v => v.color));
+
+    const result = {};
+    for (const key in obj) {
+        if (obj[key].color === maxValue) {
+            result[key] = obj[key];
+        }
+    }
+    return result;
+}
+
 
 function gameLoop(now) { // game animation loop
     const delta = now - last;
     last = now;
     smoothed = smoothed * 0.9 + delta * 0.1;
 
-    //drawMap(tiles)
+    drawMap(tiles)
     drawFPS(Math.round(1000/smoothed), Math.round(smoothed))
     drawDrill(bgr.width / 2, nodeGap*20, 0.2)
 
@@ -654,6 +705,10 @@ debugExpose({
     tiles,
     bgrctx,
     drlctx,
-    updateSpaces,
+    sections,
     getAdjNodes,
+    genSpaces,
+    getHighestColors,
+    getTileSection,
+    updateSections,
 })
