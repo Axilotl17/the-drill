@@ -45,9 +45,9 @@ const sections = Array.from({ length: mapLength }, () => new Set());
 const tiles = []
 const nodes = []
 
-var m = 0.02
-const nNoise = 0.2
+var m
 
+const nNoise = 0.2
 
 var animations = []
 
@@ -331,6 +331,7 @@ function drawMap(){ //draws all visible tiles on given map
             bgrctx.beginPath();
             bgrctx.moveTo(path[0][0] * nodeGap, path[0][1] * nodeGap - scrollPos);
 
+            bgrctx.strokeStyle = section.color;
 
             for (let i = 1; i < path.length; i += 1) {
                 const x = path[i][0] * nodeGap;
@@ -339,9 +340,14 @@ function drawMap(){ //draws all visible tiles on given map
             }
 
             bgrctx.fillStyle = section.color;
-            bgrctx.fill();
+            bgrctx.closePath;
+            bgrctx.fill()
         })
     }
+
+    // runForAll((i, j) => {
+    //     drawNode(tiles[j][i])
+    // })
 }
 
 function drawDrill(x, y, vDrill = 0, vScroll = 1) {
@@ -469,7 +475,7 @@ function drawNode(tile){ // debug
     bgrctx.strokeStyle = "black"
     bgrctx.lineWidth = 1
     bgrctx.beginPath();
-    bgrctx.arc(tile.i, tile.j- scrollPos, (tile.color+2)/16, 0, 6.2832);
+    bgrctx.arc(tile.i * nodeGap, tile.j * nodeGap - scrollPos, (1)/16 * nodeGap, 0, 6.2832);
     bgrctx.stroke();
 }
 
@@ -521,25 +527,140 @@ function getSpaceSections(space) {
     const spaceSections = []
     const colors = new Set();
     const adj = space.tiles
-    Object.values(adj).forEach(tile => colors.add(tile.color + tile.palette + tile.layer))
+    const sb = space.border
+    const fullPath = [
+        [sb.n.i, sb.n.j - m],
+        [sb.e.i + m, sb.e.j],
+        [sb.s.i, sb.s.j + m],
+        [sb.w.i - m, sb.w.j]
+    ]
+    const halfPaths = [
+        [ // north half
+            [sb.n.i, sb.n.j - m],
+            [sb.e.i + m, sb.e.j + m],
+            [sb.w.i - m, sb.w.j + m]
+        ],
+        [ // east half
+            [sb.n.i - m, sb.n.j - m],
+            [sb.e.i + m, sb.e.j],
+            [sb.s.i - m, sb.s.j + m],
+        ],
+        [ // south half
+            [sb.e.i + m, sb.e.j - m],
+            [sb.s.i, sb.s.j + m],
+            [sb.w.i - m, sb.w.j - m]
+        ],
+        [ // west half
+            [sb.n.i + m, sb.n.j - m],
+            [sb.s.i + m, sb.s.j + m],
+            [sb.w.i - m, sb.w.j]
+        ]
+    ]
+    Object.values(adj).forEach(tile => colors.add(getRGB(tile)))
+
 
     switch(colors.size) {
         case 1:
             const tile = adj.nw
-            const nb = space.border
             spaceSections.push({
-                'color' : "white",
+                'color' : getRGB(tile),
                 //'path' : Object.values(space.border).map(d => [d.i, d.j])
-                'path' : [
-                    [nb.n.i, nb.n.j - m],
-                    [nb.e.i + m, nb.e.j],
-                    [nb.s.i, nb.s.j + m],
-                    [nb.w.i - m, nb.w.j]
-                ]
+                'path' : fullPath
             })
+            break;
         case 2:
-            if(true) {}
-    }
+            if(getRGB(adj.nw) === getRGB(adj.se)) { // one diagonal works
+                if(getRGB(adj.ne) === getRGB(adj.sw)) { // have to find diagonal priority
+                    // choose either adj.nw or adj.ne
+                    const chosen = 
+                        (adj.nw.color < adj.ne.color) ||
+                        (adj.nw.color === adj.ne.color && Math.random() > 0.5)
+                            ? adj.nw
+                            : adj.ne;
+
+                    // push the object with the chosen color
+                    spaceSections.push({
+                        color: getRGB(chosen),
+                        path: fullPath
+                    });
+                } else { // theres one obvious choice
+                    spaceSections.push({
+                        'color' : getRGB(adj.nw),
+                        'path' : fullPath
+                    })
+                }
+            } else if (getRGB(adj.ne) === getRGB(adj.sw)) {  // its the other obvious choice
+                spaceSections.push({
+                    'color' : getRGB(adj.ne),
+                    'path' : fullPath
+                })
+            } else { // by being here its 2 of each, and each node is adjacent to its like color
+                if(getRGB(adj.nw) === getRGB(adj.ne)) {
+                    spaceSections.push({
+                        'color' : getRGB(adj.nw),
+                        'path' : halfPaths[0]
+                    }, {
+                        'color' : getRGB(adj.se),
+                        'path' : halfPaths[2]
+                    })
+                } else {
+                    spaceSections.push({
+                        'color' : getRGB(adj.nw),
+                        'path' : halfPaths[3]
+                    }, {
+                        'color' : getRGB(adj.se),
+                        'path' : halfPaths[1]
+                    })
+                }
+            }
+            break;
+        case 3: 
+            if(getRGB(adj.nw) === getRGB(adj.se)) {
+                spaceSections.push({
+                    'color' : getRGB(adj.nw),
+                    'path' : fullPath
+                })
+            } else if (getRGB(adj.ne) === getRGB(adj.sw)) {
+                spaceSections.push({
+                    'color' : getRGB(adj.ne),
+                    'path' : fullPath
+                })
+            } else  { // must be 2 adjacent likes, 2 adjacent unlikes
+                const dirs = [adj.nw, adj.ne, adj.se, adj.sw]
+                for(let k = 0; k < dirs.length; k++) {
+                    const [a, b, c, d] = [0, 1, 2, 3].map(i => dirs[(k + i) % 4]);
+                    if (getRGB(a) === getRGB(b)) { // finding adjacent likes
+                        spaceSections.push({
+                            'color' : getRGB(a),
+                            'path' : halfPaths[k]
+                        })
+
+                        const chosen = 
+                            (a <= c.color) && (a <= d.color)
+                                ? a.color
+                                :   (c.color < d.color) ||
+                                    (c.color === d.color && Math.random() > 0.5)
+                                        ? c
+                                        : d
+
+                        // push the object with the chosen color
+                        spaceSections.push({
+                            color: getRGB(chosen),
+                            path: halfPaths[(k + 2) % 4]
+                        });
+                    }
+                }
+            }
+            break;
+        case 4:
+            const candidates = Object.values(adj)
+                .sort((a, b) => a.color - b.color)
+                .filter((v, i, arr) => v.color <= arr[0].color)
+                spaceSections.push({
+                    'color' : getRGB(candidates[rand(0, candidates.length-1)]),
+                    'path' : fullPath
+                })
+            }
     return(spaceSections)
 }
 
@@ -699,6 +820,10 @@ function getRGB(tile) {
     return tile.color < 0 ? layers[tile.layer].background : layers[tile.layer].palettes[tile.palette][tile.color]
 }
 
+// function getRGB(tile) {
+//     return tile.layer + tile.palette + tile.color
+// }
+
  
 function gameLoop(now) { // game animation loop
     const delta = now - last;
@@ -733,7 +858,9 @@ function resize() { // resize window
         canv.width = canvWidth
         canv.height = canvHeight
     })
-  nodeGap = bgr.width / (mapSize - 1)
+    nodeGap = bgr.width / (mapSize - 1)
+    m = 0.03
+    console.log(nodeGap)
 }
 
 window.addEventListener('resize', () => {
