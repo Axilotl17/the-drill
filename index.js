@@ -16,7 +16,7 @@ function startGame() {
     console.log(nodes)
     genBackground()
     updateSections()
-    console.log(sections[1])
+    genSpaces()
 
     requestAnimationFrame(gameLoop);
 }
@@ -84,25 +84,25 @@ function populateNodes(map){ // generate the nodes on a map
             if(j>0){ // checking for existing border northward
                 const nsb = map[j-1][i].border.s // norther node southern border
                 n.i = nsb.i; // if so adopt that border
-                n.j = nsb.j - 1;
+                n.j = nsb.j;
             } else {
-                n.i = (Math.random() - 0.5) * noise;
-                n.j = -0.5 + (Math.random() - 0.5) * noise;
+                n.i = (Math.random() - 0.5) * noise + i;
+                n.j = -0.5 + (Math.random() - 0.5) * noise + j;
             }
 
-            e.i = 0.5 + (Math.random() - 0.5) * noise;
-            e.j = (Math.random() - 0.5) * noise;
+            e.i = 0.5 + (Math.random() - 0.5) * noise + i;
+            e.j = (Math.random() - 0.5) * noise + j;
 
-            s.i = (Math.random() - 0.5) * noise;
-            s.j = 0.5 + (Math.random() - 0.5) * noise;
+            s.i = (Math.random() - 0.5) * noise + i;
+            s.j = 0.5 + (Math.random() - 0.5) * noise + j;
 
             if(i>0){ // checking for existing border westward
                 const web = row[i-1].border.e // western node eastern border
-                w.i = web.i - 1;
+                w.i = web.i;
                 w.j = web.j;
             } else {
-                w.i = -0.5 + (Math.random() - 0.5) * noise;
-                w.j = (Math.random() - 0.5) * noise;
+                w.i = -0.5 + (Math.random() - 0.5) * noise + i;
+                w.j = (Math.random() - 0.5) * noise + j;
             }
 
             node.border = {
@@ -128,7 +128,7 @@ function genBackground() { // places clusters on background
                 'color' : -1,
                 'i' : i,
                 'j' : j,
-                'spaces' : [],
+                'spaces' : {},
             }
             row.push(tile)
 
@@ -176,8 +176,8 @@ function genBackground() { // places clusters on background
 } 
 
 function genSpaces() {
-    for(let i = 0; i < mapSize - 1; i++) {
-        for(let j = 0; j < mapLength - 1; j++) {
+    for(let j = 0; j < mapLength - 1; j++) {
+        for(let i = 0; i < mapSize - 1; i++) {
             const space = {
                 'i' : i,
                 'j' : j,
@@ -188,7 +188,6 @@ function genSpaces() {
                     'sw' : tiles[j+1][i],
                 }
             }
-
 
             const nwb = space.tiles.nw.node.border
             const seb = space.tiles.se.node.border
@@ -202,7 +201,9 @@ function genSpaces() {
 
             space.sections = getSpaceSections(space)
 
-            //sections[j].add(...space.sections)
+            space.sections.forEach(section => {
+                sections[j].add(section)
+            })
 
             tiles[j][i].spaces.se = space
             tiles[j][i+1].spaces.sw = space
@@ -335,7 +336,7 @@ function drawMap(map){ //draws all visible tiles on given map
             bgrctx.fillStyle = section.color;
             bgrctx.strokeStyle = section.color;
             bgrctx.lineCap = "round"
-            bgrctx.lineWidth = 1
+            bgrctx.lineWidth = 2
             bgrctx.fill();
             bgrctx.closePath();
             bgrctx.stroke();
@@ -505,9 +506,8 @@ function updateSections() {
 
 function getTileSection(tile) {
     const node = tile.node
-    const path = Object.values(node.border).map(d => [d.i + node.i, d.j + node.j])
-    const color = tile.color < 0 ? layers[tile.layer].background : 
-        layers[tile.layer].palettes[tile.palette][tile.color]
+    const path = Object.values(node.border).map(d => [d.i, d.j]);
+    const color = getRGB(tile);
     return {
         'color' : color,
         'path' : path
@@ -515,15 +515,22 @@ function getTileSection(tile) {
 }
 
 function getSpaceSections(space) {
-    const highestColors = getHighestColors(space.tiles)
+    const spaceSections = []
+    const colors = new Set();
+    const adj = space.tiles
+    Object.values(adj).forEach(tile => colors.add(tile.color + tile.palette + tile.layer))
 
-    switch(highestColors.length) {
-        case 1: 
-        const tile = Object.highestColors.values[0]
-        return {
-            'palette' : 3
-        }
+    switch(colors.size) {
+        case 1:
+            const tile = adj.nw
+            spaceSections.push({
+                'color' : getRGB(tile),
+                'path' : Object.values(space.border).map(d => [d.i, d.j])
+            })
+        case 2:
+            if(true) {}
     }
+    return(spaceSections)
 }
 
 function getAllClusters(map) { // UNUSED may use later so not deleting
@@ -634,7 +641,6 @@ function mod(a, n) {
 
 function getHighestColors(obj) {
     const maxValue = Math.max(...Object.values(obj).map(v => v.color));
-
     const result = {};
     for (const key in obj) {
         if (obj[key].color === maxValue) {
@@ -644,7 +650,46 @@ function getHighestColors(obj) {
     return result;
 }
 
+function getFrequentColors(obj) {
+    const freq = {};
+    let key, value;
 
+    // count frequencies
+    for (key in obj) {
+        value = obj[key].color;
+        freq[value] = (freq[value] || 0) + 1;
+    }
+
+    // find max frequency
+    let maxFreq = 0;
+    for (value in freq) {
+        if (freq[value] > maxFreq) {
+        maxFreq = freq[value];
+        }
+    }
+
+    // collect all entries whose value matches max-frequency value
+    const result = {};
+    const uniqueValues = new Set();
+    for (key in obj) {
+        value = obj[key].color;
+        if (freq[value] === maxFreq) {
+            result[key] = obj[key];
+            uniqueValues.add(value);
+        }
+    }
+
+    return {
+        'freqColors': result,
+        'count' : uniqueValues.size
+    }
+}
+
+function getRGB(tile) {
+    return tile.color < 0 ? layers[tile.layer].background : layers[tile.layer].palettes[tile.palette][tile.color]
+}
+
+ 
 function gameLoop(now) { // game animation loop
     const delta = now - last;
     last = now;
@@ -711,4 +756,5 @@ debugExpose({
     getHighestColors,
     getTileSection,
     updateSections,
+    getFrequentColors
 })
