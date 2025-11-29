@@ -29,6 +29,8 @@ const bgrctx = bgr.getContext('2d');
 const drl = document.getElementById("drill")
 const drlctx = drl.getContext('2d');
 
+bgrctx.imageSmoothingEnabled = false;
+
 var canvWidth
 var canvHeight
 
@@ -43,6 +45,10 @@ const sections = Array.from({ length: mapLength }, () => new Set());
 const tiles = []
 const nodes = []
 
+var m = 0.02
+const nNoise = 0.2
+
+
 var animations = []
 
 var nodeGap 
@@ -55,7 +61,6 @@ startGame();
 function populateNodes(map){ // generate the nodes on a map
     // in theory only should populate one map and make copies for other layers
     for(let j=0; j<mapLength; j++){
-        const noise = 0.2
         const row = []
         for(let i=0; i<mapSize; i++) {
             const node = {
@@ -76,7 +81,7 @@ function populateNodes(map){ // generate the nodes on a map
             node. 
 
             when creating borders, we start between each node (0.5 or -0.5) then add some random
-            value between -noise/2 and +noise/2, (Math.random() - 0.5) * noise. this keeps things
+            value between -nNoise/2 and +nNoise/2, (Math.random() - 0.5) * nNoise. this keeps things
             spicy. 
             */
             let n = {}, e = {}, s = {}, w = {}
@@ -86,23 +91,23 @@ function populateNodes(map){ // generate the nodes on a map
                 n.i = nsb.i; // if so adopt that border
                 n.j = nsb.j;
             } else {
-                n.i = (Math.random() - 0.5) * noise + i;
-                n.j = -0.5 + (Math.random() - 0.5) * noise + j;
+                n.i = (Math.random() - 0.5) * nNoise + i;
+                n.j = -0.5 + (Math.random() - 0.5) * nNoise + j;
             }
 
-            e.i = 0.5 + (Math.random() - 0.5) * noise + i;
-            e.j = (Math.random() - 0.5) * noise + j;
+            e.i = 0.5 + (Math.random() - 0.5) * nNoise + i;
+            e.j = (Math.random() - 0.5) * nNoise + j;
 
-            s.i = (Math.random() - 0.5) * noise + i;
-            s.j = 0.5 + (Math.random() - 0.5) * noise + j;
+            s.i = (Math.random() - 0.5) * nNoise + i;
+            s.j = 0.5 + (Math.random() - 0.5) * nNoise + j;
 
             if(i>0){ // checking for existing border westward
                 const web = row[i-1].border.e // western node eastern border
                 w.i = web.i;
                 w.j = web.j;
             } else {
-                w.i = -0.5 + (Math.random() - 0.5) * noise + i;
-                w.j = (Math.random() - 0.5) * noise + j;
+                w.i = -0.5 + (Math.random() - 0.5) * nNoise + i;
+                w.j = (Math.random() - 0.5) * nNoise + j;
             }
 
             node.border = {
@@ -311,7 +316,7 @@ function genGrass(map) {
     }
 }
 
-function drawMap(map){ //draws all visible tiles on given map
+function drawMap(){ //draws all visible tiles on given map
     bgrctx.clearRect(0, 0, bgr.width, bgr.height);
 
     const topNode = Math.max(Math.floor(scrollPos/nodeGap), 0)
@@ -319,13 +324,13 @@ function drawMap(map){ //draws all visible tiles on given map
 
     for (let j = topNode; j < botNode; j++) {
         const row = sections[j]
-
         row.forEach(section => {
             //console.log(section)
             const path = section.path
 
             bgrctx.beginPath();
             bgrctx.moveTo(path[0][0] * nodeGap, path[0][1] * nodeGap - scrollPos);
+
 
             for (let i = 1; i < path.length; i += 1) {
                 const x = path[i][0] * nodeGap;
@@ -334,18 +339,9 @@ function drawMap(map){ //draws all visible tiles on given map
             }
 
             bgrctx.fillStyle = section.color;
-            bgrctx.strokeStyle = section.color;
-            bgrctx.lineCap = "round"
-            bgrctx.lineWidth = 2
             bgrctx.fill();
-            bgrctx.closePath();
-            bgrctx.stroke();
         })
     }
-
-    // runForAll((i, j) => { // debug
-    //     drawNode(map[j][i]);
-    // })
 }
 
 function drawDrill(x, y, vDrill = 0, vScroll = 1) {
@@ -506,7 +502,14 @@ function updateSections() {
 
 function getTileSection(tile) {
     const node = tile.node
-    const path = Object.values(node.border).map(d => [d.i, d.j]);
+    const nb = node.border
+    //const path = Object.values(node.border).map(d => [d.i, d.j]);
+    const path = [
+        [nb.n.i, nb.n.j - m],
+        [nb.e.i + m, nb.e.j],
+        [nb.s.i, nb.s.j + m],
+        [nb.w.i - m, nb.w.j]
+    ]
     const color = getRGB(tile);
     return {
         'color' : color,
@@ -523,9 +526,16 @@ function getSpaceSections(space) {
     switch(colors.size) {
         case 1:
             const tile = adj.nw
+            const nb = space.border
             spaceSections.push({
-                'color' : getRGB(tile),
-                'path' : Object.values(space.border).map(d => [d.i, d.j])
+                'color' : "white",
+                //'path' : Object.values(space.border).map(d => [d.i, d.j])
+                'path' : [
+                    [nb.n.i, nb.n.j - m],
+                    [nb.e.i + m, nb.e.j],
+                    [nb.s.i, nb.s.j + m],
+                    [nb.w.i - m, nb.w.j]
+                ]
             })
         case 2:
             if(true) {}
@@ -756,5 +766,6 @@ debugExpose({
     getHighestColors,
     getTileSection,
     updateSections,
-    getFrequentColors
+    getFrequentColors,
+    m
 })
